@@ -235,13 +235,13 @@ class HandoffAndCoordinationTests(unittest.TestCase):
 
     def test_routing_matrix_accepts_each_authorized_default(self) -> None:
         defaults = {
-            "coordinator": ("gpt-5.6-sol", "Medium", "read-only"),
-            "product": ("gpt-5.6-sol", "Medium", "read-only"),
-            "architecture": ("gpt-5.6-sol", "Medium", "read-only"),
-            "implementation": ("gpt-5.6-luna", "Low", "workspace-write"),
-            "qa": ("gpt-5.6-sol", "Medium", "workspace-write"),
-            "reviewer": ("gpt-5.6-sol", "Medium", "read-only"),
-            "knowledge_steward": ("gpt-5.6-luna", "Low", "workspace-write"),
+            "coordinator": ("gpt-6-astra", "Medium", "read-only"),
+            "product": ("gpt-6-sol", "Medium", "read-only"),
+            "architecture": ("gpt-6-sol", "Medium", "read-only"),
+            "implementation": ("gpt-6-luna", "Low", "workspace-write"),
+            "qa": ("gpt-6-sol", "Medium", "workspace-write"),
+            "reviewer": ("gpt-6-sol", "Medium", "read-only"),
+            "knowledge_steward": ("gpt-6-luna", "Low", "workspace-write"),
         }
         cases = 0
         for role, (model, effort, sandbox) in defaults.items():
@@ -254,6 +254,18 @@ class HandoffAndCoordinationTests(unittest.TestCase):
                 self.assertEqual(validate_routing(value), [])
                 cases += 1
         self.assertEqual(cases, 7)
+
+    def test_astra_routing_and_retired_models(self) -> None:
+        for role, sandbox in (("coordinator", "read-only"), ("implementation", "workspace-write"), ("reviewer", "read-only")):
+            with self.subTest(role=role):
+                value = self.handoff()
+                value.update({"to_role": role, "target_model": "gpt-6-astra", "effort": "Medium" if role == "coordinator" else "High", "sandbox_mode": sandbox, "rationale": "High risk and complex work requires deeper reasoning."})
+                self.assertEqual(validate_routing(value), [])
+        for model in ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5"):
+            with self.subTest(model=model):
+                value = self.handoff()
+                value["target_model"] = model
+                self.assertTrue(validate_handoff(value))
 
     def test_pre_dispatch_validation_blocks_task_creation_and_send_before_side_effects(self) -> None:
         invalid = self.handoff()
@@ -392,10 +404,10 @@ class HandoffAndCoordinationTests(unittest.TestCase):
 
     def test_cycle5_handoff_tuple_binding_and_blocked_fallback(self) -> None:
         ready = self.handoff()
-        ready.update({"lifecycle_state": "REVIEW_ACTIVE", "from_role": "implementation", "to_role": "reviewer", "source_task_key": "issue-1-implementation", "target_task_key": "issue-1-reviewer", "target_model": "gpt-5.6-sol", "effort": "Medium", "sandbox_mode": "read-only", "work_item": {**ready["work_item"], "pull_request_url": "https://github.com/o/r/pull/6", "commit_sha": "a" * 40}, "readiness_evidence": {"commit_sha": "b" * 40, "pull_request_url": "https://github.com/o/r/pull/6", "local_gates": "passed", "ci_status": "passed", "required_checks": [{"name": "validate", "status": "passed"}]}})
+        ready.update({"lifecycle_state": "REVIEW_ACTIVE", "from_role": "implementation", "to_role": "reviewer", "source_task_key": "issue-1-implementation", "target_task_key": "issue-1-reviewer", "target_model": "gpt-6-sol", "effort": "Medium", "sandbox_mode": "read-only", "work_item": {**ready["work_item"], "pull_request_url": "https://github.com/o/r/pull/6", "commit_sha": "a" * 40}, "readiness_evidence": {"commit_sha": "b" * 40, "pull_request_url": "https://github.com/o/r/pull/6", "local_gates": "passed", "ci_status": "passed", "required_checks": [{"name": "validate", "status": "passed"}]}})
         self.assertTrue(validate_handoff(ready))
         blocked = self.handoff()
-        blocked.update({"lifecycle_state": "BLOCKED", "lifecycle_event": "BLOCKED", "from_role": "coordinator", "to_role": "coordinator", "source_task_key": "issue-1-coordinator", "target_task_key": "issue-1-coordinator", "target_model": "gpt-5.6-sol", "effort": "Medium", "sandbox_mode": "read-only"})
+        blocked.update({"lifecycle_state": "BLOCKED", "lifecycle_event": "BLOCKED", "from_role": "coordinator", "to_role": "coordinator", "source_task_key": "issue-1-coordinator", "target_task_key": "issue-1-coordinator", "target_model": "gpt-6-astra", "effort": "Medium", "sandbox_mode": "read-only"})
         self.assertTrue(validate_handoff(blocked))
         blocked["blocked_fallback"] = {"repository": "OWNER/REPOSITORY", "issue_or_pr_url": "https://github.com/OWNER/REPOSITORY/issues/1", "operation_id": blocked["operation_id"], "objective": "Recover", "expected_output": "Handoff", "evidence": "PR evidence", "next_owner": "coordinator"}
         blocked["recipient_task_keys"] = ["issue-1-coordinator"]
@@ -426,10 +438,10 @@ class HandoffAndCoordinationTests(unittest.TestCase):
     def test_invalid_model_effort_and_role_pairings_fail(self) -> None:
         mutations = {
             "unknown model": {"target_model": "gpt-9.0", "effort": "Low"},
-            "Sol implementation": {"to_role": "implementation", "target_model": "gpt-5.6-sol", "effort": "Medium", "sandbox_mode": "workspace-write"},
-            "Luna reviewer": {"to_role": "reviewer", "target_model": "gpt-5.6-luna", "effort": "Low", "sandbox_mode": "read-only"},
-            "Terra high without rationale": {"to_role": "implementation", "target_model": "gpt-5.6-terra", "effort": "High", "sandbox_mode": "workspace-write", "rationale": "A normal implementation task."},
-            "Reviewer high without risk": {"to_role": "reviewer", "target_model": "gpt-5.6-sol", "effort": "High", "sandbox_mode": "read-only", "rationale": "A normal review task."},
+            "old Sol model": {"to_role": "implementation", "target_model": "gpt-5.6-sol", "effort": "Medium", "sandbox_mode": "workspace-write"},
+            "Luna reviewer": {"to_role": "reviewer", "target_model": "gpt-6-luna", "effort": "Low", "sandbox_mode": "read-only"},
+            "Sol high without rationale": {"to_role": "implementation", "target_model": "gpt-6-sol", "effort": "High", "sandbox_mode": "workspace-write", "rationale": "A normal implementation task."},
+            "Reviewer high without risk": {"to_role": "reviewer", "target_model": "gpt-6-sol", "effort": "High", "sandbox_mode": "read-only", "rationale": "A normal review task."},
         }
         for name, changes in mutations.items():
             with self.subTest(name=name):
@@ -439,24 +451,24 @@ class HandoffAndCoordinationTests(unittest.TestCase):
 
     def test_correction_and_reviewer_routing_are_explicit(self) -> None:
         correction = self.handoff()
-        correction.update({"is_correction": True, "to_role": "implementation", "target_model": "gpt-5.6-luna", "effort": "Low", "sandbox_mode": "workspace-write"})
+        correction.update({"is_correction": True, "to_role": "implementation", "target_model": "gpt-6-luna", "effort": "Low", "sandbox_mode": "workspace-write"})
         self.assertEqual(validate_routing(correction), [])
         invalid = copy.deepcopy(correction)
-        invalid["target_model"] = "gpt-5.6-sol"
+        invalid["target_model"] = "gpt-6-sol"
         invalid["effort"] = "Medium"
         self.assertTrue(validate_handoff(invalid))
         reviewer = self.handoff()
-        reviewer.update({"to_role": "reviewer", "target_model": "gpt-5.6-sol", "effort": "Medium", "sandbox_mode": "read-only"})
+        reviewer.update({"to_role": "reviewer", "target_model": "gpt-6-sol", "effort": "Medium", "sandbox_mode": "read-only"})
         self.assertEqual(validate_routing(reviewer), [])
 
     def test_ephemeral_research_is_read_only_and_model_bounded(self) -> None:
         valid = self.handoff()
-        valid.update({"execution_mode": "ephemeral_research", "sandbox_mode": "read-only", "target_model": "gpt-5.6-luna", "effort": "Low"})
+        valid.update({"execution_mode": "ephemeral_research", "sandbox_mode": "read-only", "target_model": "gpt-6-luna", "effort": "Low"})
         self.assertEqual(validate_handoff(valid), [])
         for name, changes in {
             "write-capable": {"sandbox_mode": "workspace-write"},
-            "Terra medium": {"target_model": "gpt-5.6-terra", "effort": "Medium"},
-            "Sol without exceptional rationale": {"target_model": "gpt-5.6-sol", "effort": "Medium"},
+            "Sol medium": {"target_model": "gpt-6-sol", "effort": "Medium"},
+            "Astra without exceptional rationale": {"target_model": "gpt-6-astra", "effort": "Medium"},
         }.items():
             with self.subTest(name=name):
                 value = copy.deepcopy(valid)
@@ -574,6 +586,7 @@ class HandoffAndCoordinationTests(unittest.TestCase):
             "lifecycle_event": "DELIVERY_CELL_COMPLETED",
             "from_role": "reviewer",
             "to_role": "coordinator",
+            "target_model": "gpt-6-astra",
             "source_task_key": "issue-1-reviewer",
             "target_task_key": "issue-1-coordinator",
             "recipient_task_keys": ["issue-1-coordinator"],
@@ -683,7 +696,7 @@ class HandoffAndCoordinationTests(unittest.TestCase):
                 "to_role": "qa",
                 "source_task_key": "issue-1-implementation",
                 "target_task_key": "issue-1-qa",
-                "target_model": "gpt-5.6-sol",
+                "target_model": "gpt-6-sol",
                 "effort": "Medium",
                 "sandbox_mode": "workspace-write",
                 "evidence": ["local gates passed", "CI passed"],
@@ -710,7 +723,7 @@ class HandoffAndCoordinationTests(unittest.TestCase):
                 "from_role": "qa",
                 "source_task_key": "issue-1-qa",
                 "target_task_key": "issue-1-reviewer",
-                "target_model": "gpt-5.6-sol",
+                "target_model": "gpt-6-sol",
                 "effort": "Medium",
                 "sandbox_mode": "read-only",
                 "work_item": {
@@ -726,7 +739,7 @@ class HandoffAndCoordinationTests(unittest.TestCase):
         reviewer["recipient_task_keys"] = ["issue-1-reviewer"]
         reviewer["recipient_operation_ids"] = ["00000000-0000-4000-8000-000000000004"]
         self.assertEqual(validate_handoff(reviewer), [])
-        reviewer["target_model"] = "gpt-5.6-luna"
+        reviewer["target_model"] = "gpt-6-luna"
         self.assertTrue(validate_handoff(reviewer))
 
     def test_executable_handoff_validation_enforces_every_schema_constraint(self) -> None:
@@ -942,7 +955,7 @@ class HandoffAndCoordinationTests(unittest.TestCase):
         self.assertIn("bounded read-only", coordination)
         self.assertIn("cross_task_watchdog_seconds: 25", config)
         self.assertIn("routing_policy: repository-native-v1", config)
-        self.assertIn("gpt-5.6-luna/Low|gpt-5.6-terra/Low..High", config)
+        self.assertIn("gpt-6-luna/Low|gpt-6-sol/Low..High|gpt-6-astra/High-with-risk-rationale", config)
 
 
 class RepositoryStateTests(unittest.TestCase):

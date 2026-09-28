@@ -63,36 +63,38 @@ ROLE_CODES = {
     "reviewer": "RV",
     "knowledge_steward": "KS",
 }
-TARGET_MODELS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
+TARGET_MODELS = ("gpt-6-luna", "gpt-6-sol", "gpt-6-astra")
 EFFORT_LEVELS = ("Low", "Medium", "High")
 ROUTING_MATRIX = {
-    "coordinator": {"gpt-5.6-sol": {"Medium"}},
-    "product": {"gpt-5.6-sol": {"Medium"}},
-    "architecture": {"gpt-5.6-sol": {"Medium"}},
+    "coordinator": {"gpt-6-astra": {"Medium", "High"}},
+    "product": {"gpt-6-sol": {"Medium"}, "gpt-6-astra": {"High"}},
+    "architecture": {"gpt-6-sol": {"Medium"}, "gpt-6-astra": {"High"}},
     "implementation": {
-        "gpt-5.6-luna": {"Low"},
-        "gpt-5.6-terra": {"Low", "Medium", "High"},
+        "gpt-6-luna": {"Low"},
+        "gpt-6-sol": {"Low", "Medium", "High"},
+        "gpt-6-astra": {"High"},
     },
-    "qa": {"gpt-5.6-sol": {"Medium", "High"}},
-    "reviewer": {"gpt-5.6-sol": {"Medium", "High"}},
+    "qa": {"gpt-6-sol": {"Medium", "High"}, "gpt-6-astra": {"High"}},
+    "reviewer": {"gpt-6-sol": {"Medium", "High"}, "gpt-6-astra": {"High"}},
     "knowledge_steward": {
-        "gpt-5.6-luna": {"Low"},
-        "gpt-5.6-sol": {"Medium"},
+        "gpt-6-luna": {"Low"},
+        "gpt-6-sol": {"Medium"},
+        "gpt-6-astra": {"High"},
     },
-    "human_owner": {"gpt-5.6-sol": {"Medium"}},
+    "human_owner": {"gpt-6-astra": {"Medium"}},
 }
 ROUTING_POLICY_VERSION = "repository-native-v1"
 ROUTING_CONFIG_LINES = (
     "routing_policy: repository-native-v1",
     "routing_matrix:",
-    '  coordinator: "gpt-5.6-sol/Medium"',
-    '  product: "gpt-5.6-sol/Medium"',
-    '  architecture: "gpt-5.6-sol/Medium"',
-    '  implementation: "gpt-5.6-luna/Low|gpt-5.6-terra/Low..High"',
-    '  qa: "gpt-5.6-sol/Medium|High-with-risk-rationale"',
-    '  reviewer: "gpt-5.6-sol/Medium|High-with-risk-rationale"',
-    '  knowledge_steward: "gpt-5.6-luna/Low|gpt-5.6-sol/Medium-with-decision-rationale"',
-    '  ephemeral_research: "gpt-5.6-luna/Low|gpt-5.6-terra/Low|gpt-5.6-sol/exceptional-rationale"',
+    '  coordinator: "gpt-6-astra/Medium|High-with-risk-rationale"',
+    '  product: "gpt-6-sol/Medium|gpt-6-astra/High-with-risk-rationale"',
+    '  architecture: "gpt-6-sol/Medium|gpt-6-astra/High-with-risk-rationale"',
+    '  implementation: "gpt-6-luna/Low|gpt-6-sol/Low..High|gpt-6-astra/High-with-risk-rationale"',
+    '  qa: "gpt-6-sol/Medium|High-with-risk-rationale|gpt-6-astra/High-with-risk-rationale"',
+    '  reviewer: "gpt-6-sol/Medium|High-with-risk-rationale|gpt-6-astra/High-with-risk-rationale"',
+    '  knowledge_steward: "gpt-6-luna/Low|gpt-6-sol/Medium-with-decision-rationale|gpt-6-astra/High-with-risk-rationale"',
+    '  ephemeral_research: "gpt-6-luna/Low|gpt-6-sol/Low|gpt-6-astra/Medium-with-exceptional-rationale"',
 )
 LIFECYCLE_CONFIG_LINES = (
     "lifecycle_policy: delivery-cell-v1",
@@ -178,12 +180,10 @@ def validate_routing(value: dict[str, Any]) -> list[str]:
     if mode == "ephemeral_research":
         if model not in TARGET_MODELS:
             errors.append(f"ephemeral_research cannot route to target model {model!r}")
-        elif model == "gpt-5.6-luna" and effort != "Low":
-            errors.append("ephemeral Luna routing is limited to Low effort")
-        elif model == "gpt-5.6-terra" and effort != "Low":
-            errors.append("ephemeral Terra routing is limited to Low effort")
-        elif model == "gpt-5.6-sol" and "exceptional" not in rationale.lower():
-            errors.append("ephemeral Sol routing requires an explicit exceptional rationale")
+        elif model in {"gpt-6-luna", "gpt-6-sol"} and effort != "Low":
+            errors.append("ephemeral Luna and Sol routing is limited to Low effort")
+        elif model == "gpt-6-astra" and (effort != "Medium" or "exceptional" not in rationale.lower()):
+            errors.append("ephemeral Astra routing requires Medium effort and an exceptional rationale")
         if sandbox != "read-only":
             errors.append("ephemeral_research handoffs must be read-only")
     elif mode == "durable":
@@ -203,25 +203,25 @@ def validate_routing(value: dict[str, Any]) -> list[str]:
     else:
         errors.append(f"unknown execution mode: {mode!r}")
 
-    if mode == "durable" and model == "gpt-5.6-terra" and effort in {"Medium", "High"}:
+    if mode == "durable" and model == "gpt-6-sol" and target_role == "implementation" and effort in {"Medium", "High"}:
         lowered = rationale.lower()
         if "risk" not in lowered and "complex" not in lowered:
-            errors.append("Terra effort above Low requires an explicit risk/complexity rationale")
-    if mode == "durable" and target_role in {"qa", "reviewer"} and effort == "High":
+            errors.append("Implementation Sol effort above Low requires an explicit risk/complexity rationale")
+    if mode == "durable" and effort == "High":
         if "risk" not in rationale.lower():
             errors.append(f"{target_role} High effort requires an explicit high-risk rationale")
-    if mode == "durable" and target_role == "knowledge_steward" and model == "gpt-5.6-sol" and "decision" not in rationale.lower():
+    if mode == "durable" and target_role == "knowledge_steward" and model == "gpt-6-sol" and "decision" not in rationale.lower():
         errors.append("Knowledge Steward Sol routing requires a decision-heavy rationale")
 
     if value.get("is_correction"):
         if target_role != "implementation":
             errors.append("corrections must return to the implementation role")
-        if model not in {"gpt-5.6-luna", "gpt-5.6-terra"}:
+        if model not in ROUTING_MATRIX["implementation"]:
             errors.append("corrections must use an allowed implementation model")
         if mode != "durable":
             errors.append("corrections require durable delivery")
-    if mode == "durable" and target_role == "reviewer" and model != "gpt-5.6-sol":
-        errors.append("Reviewer activation must use gpt-5.6-sol")
+    if mode == "durable" and target_role == "coordinator" and model != "gpt-6-astra":
+        errors.append("Coordinator activation must use gpt-6-astra")
     return errors
 
 
@@ -323,8 +323,8 @@ def validate_lifecycle_handoff(value: dict[str, Any]) -> list[str]:
     if state == LifecycleState.REVIEW_ACTIVE.value:
         if value.get("to_role") != "reviewer":
             errors.append("REVIEW_ACTIVE handoffs must explicitly activate Reviewer")
-        if value.get("target_model") != "gpt-5.6-sol" or value.get("effort") != "Medium":
-            errors.append("REVIEW_ACTIVE must activate Reviewer with Sol/Medium")
+        if value.get("target_model") not in {"gpt-6-sol", "gpt-6-astra"} or value.get("effort") not in {"Medium", "High"}:
+            errors.append("REVIEW_ACTIVE must activate Reviewer with Sol/Medium or justified Sol/Astra High")
     if state == LifecycleState.CORRECTION_ACTIVE.value:
         if value.get("to_role") != "implementation" or not value.get("is_correction"):
             errors.append("CORRECTION_ACTIVE must return to the same Implementation task")
