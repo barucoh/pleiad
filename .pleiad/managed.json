@@ -8,7 +8,7 @@
     ".codex/agents/qa.toml": "b4f7ecbf94273d372f513dcdf05ae13fef06398e8e74973baf856ec59a698e47",
     ".codex/agents/reviewer.toml": "5f33bad72ac61f1dd910947cc5467ea63b94fe45bc94878fb7ecafa2c8730fc8",
     ".codex/hooks.json": "fd05ae3a9496e09835cce179c673dd96ffb41842d78b1b05409a2ae099e059c8",
-    ".pleiad/config.yaml": "d9e1d39b786a7bc20e02b56b94ed4b8d556dc370a1daab4e72538519b2fca3c4",
+    ".pleiad/config.yaml": "4dc5aa312c0f313090cdc13abac7fbae1b41bde911c8d1789b17b35816642f69",
     ".pleiad/handoff-template.json": "859f59ba0d723ca00cc52f78bf9994043a505122e0d2f7b0b860f92100ae2a83",
     ".pleiad/handoff.schema.json": "850bc7bdff87e53b210c962d71cd71dd1e5c3b2232cd95662b12899738abb10c",
     "docs/pleiad/coordination.md": "e6371f7f8b688b22134b43925217c9c477b06ad2eaf51e47a67b665287d58fda",
@@ -23,7 +23,7 @@
   "managed_blocks": {
     "AGENTS.md": "452042a1b5b8718b6294d870aa1946f7e85d47534488efac196b93af529510aa"
   },
-  "plugin_version": "0.1.0",
+  "plugin_version": "0.1.1",
   "project_name": "Pleiad",
   "schema_version": 2
 }
