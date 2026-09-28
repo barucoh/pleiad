@@ -1,6 +1,6 @@
 schema_version: 2
 project_name: "CHANGE_ME"
-applied_plugin_version: 0.1.0
+applied_plugin_version: 0.1.1
 release_channel: stable
 session_title_format: "#{issue_number} {role_code} - {issue_title}"
 session_title_max_characters: 36
@@ -14,14 +14,14 @@ role_codes:
   knowledge_steward: KS
 routing_policy: repository-native-v1
 routing_matrix:
-  coordinator: "gpt-5.6-sol/Medium"
-  product: "gpt-5.6-sol/Medium"
-  architecture: "gpt-5.6-sol/Medium"
-  implementation: "gpt-5.6-luna/Low|gpt-5.6-terra/Low..High"
-  qa: "gpt-5.6-sol/Medium|High-with-risk-rationale"
-  reviewer: "gpt-5.6-sol/Medium|High-with-risk-rationale"
-  knowledge_steward: "gpt-5.6-luna/Low|gpt-5.6-sol/Medium-with-decision-rationale"
-  ephemeral_research: "gpt-5.6-luna/Low|gpt-5.6-terra/Low|gpt-5.6-sol/exceptional-rationale"
+  coordinator: "gpt-6-astra/Medium|High-with-risk-rationale"
+  product: "gpt-6-sol/Medium|gpt-6-astra/High-with-risk-rationale"
+  architecture: "gpt-6-sol/Medium|gpt-6-astra/High-with-risk-rationale"
+  implementation: "gpt-6-luna/Low|gpt-6-sol/Low..High|gpt-6-astra/High-with-risk-rationale"
+  qa: "gpt-6-sol/Medium|High-with-risk-rationale|gpt-6-astra/High-with-risk-rationale"
+  reviewer: "gpt-6-sol/Medium|High-with-risk-rationale|gpt-6-astra/High-with-risk-rationale"
+  knowledge_steward: "gpt-6-luna/Low|gpt-6-sol/Medium-with-decision-rationale|gpt-6-astra/High-with-risk-rationale"
+  ephemeral_research: "gpt-6-luna/Low|gpt-6-sol/Low|gpt-6-astra/Medium-with-exceptional-rationale"
 lifecycle_policy: delivery-cell-v1
 lifecycle_sequence: "IMPLEMENTATION_ACTIVE->IMPLEMENTATION_READY->QA_PASSED->REVIEW_ACTIVE->CHANGES_REQUESTED->CORRECTION_ACTIVE->IMPLEMENTATION_READY->QA_PASSED->REVIEW_ACTIVE->REVIEW_ACCEPTED->HUMAN_MERGE_READY"
 lifecycle_transport_overlay: per-recipient DELIVERY_UNKNOWN

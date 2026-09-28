@@ -15,7 +15,7 @@ The executable contracts are the standalone files in `.codex/agents/`. Each decl
 
 The role codes are authoritative for prospective session titles. Unknown codes are invalid.
 
-Model routing is also authoritative: Coordinator/Product/Architecture use Sol/Medium by default; Implementation uses Luna/Low or Terra for nontrivial work; QA/Reviewer use Sol/Medium; Knowledge Steward uses Luna/Low. Every handoff carries explicit Target model, Effort, and one-sentence Rationale. Corrections return to the same Implementation task using Luna or Terra; Reviewer activation uses Sol/Medium or justified Sol/High.
+Model routing is also authoritative: Coordinator uses 6-Astra/Medium; Product and Architecture use 6-Sol/Medium, with 6-Astra/High for difficult work. Implementation uses 6-Luna/Low for routine work, 6-Sol for nontrivial work, and 6-Astra/High for difficult work. QA and Reviewer use 6-Sol/Medium, with 6-Astra/High for difficult work. Knowledge Steward uses 6-Luna/Low, with 6-Sol/Medium for decision-heavy work and 6-Astra/High for difficult work. Every handoff carries explicit Target model, Effort, and one-sentence Rationale. High effort requires a risk rationale; corrections return to the same Implementation task. Only the 6-Astra route is allowed for Coordinator.
 
 Roles that write or make material decisions run only in issue-backed user-visible tasks. An agent file is a reusable contract, not permission to invoke that role as an ephemeral subagent. Ephemeral subagents are restricted to bounded read-only information gathering.
 
