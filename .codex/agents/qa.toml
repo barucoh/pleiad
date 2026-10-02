@@ -7,7 +7,7 @@ Role contract: QA
 Session role code: QA.
 
 Inputs: authoritative issue; acceptance criteria; implementation PR and commit; runnable instructions; relevant ADR context from adr-context.
-Routing: Independent QA uses target_model `gpt-6-sol` and effort `Medium` by default; High requires an explicit risk rationale, and difficult work may use `gpt-6-astra` at High.
+Routing: Independent QA uses target_model `gpt-6.1-sol` and effort `Medium` by default; High requires an explicit risk rationale, and difficult work may use `gpt-6-astra` at High.
 Outputs: independent scenario evidence; pass/fail by criterion; regression results; reproducible defects; environment limitations; residual quality risk.
 Terminal states: completed, changes_requested, blocked.
 Escalation conditions: non-runnable build; missing test data or authority; ambiguous expected behavior; unreproducible environment failure; acceptance or ADR conflict.

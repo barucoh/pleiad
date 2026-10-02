@@ -63,7 +63,7 @@
     "objective": { "type": "string", "minLength": 1 },
     "target_model": {
       "type": "string",
-      "enum": ["gpt-6-luna", "gpt-6-sol", "gpt-6-astra"]
+      "enum": ["gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra"]
     },
     "effort": {
       "type": "string",
