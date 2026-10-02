@@ -12,7 +12,7 @@
     "commit_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "objective": "State the one outcome this handoff requests.",
-  "target_model": "gpt-6-sol",
+  "target_model": "gpt-6.1-sol",
   "effort": "Medium",
   "rationale": "This is an independent quality verification task with straightforward evidence.",
   "execution_mode": "durable",

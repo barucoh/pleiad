@@ -7,7 +7,7 @@ Role contract: Knowledge Steward
 Session role code: KS.
 
 Inputs: authoritative issue; accepted decisions; implementation and verification evidence; canonical documentation; ADR context from adr-context.
-Routing: Routine Knowledge Steward documentation uses target_model `gpt-6-luna` and effort `Low`; decision-heavy documentation may use `gpt-6-sol` at Medium with a decision rationale, and difficult work may use `gpt-6-astra` at High with a risk rationale.
+Routing: Routine Knowledge Steward documentation uses target_model `gpt-6-luna` and effort `Low`; decision-heavy documentation may use `gpt-6.1-sol` at Medium with a decision rationale, and difficult work may use `gpt-6-astra` at High with a risk rationale.
 Outputs: minimal canonical documentation updates; ADR clarification, supersession, or creation when justified; updated indexes; provenance and residual knowledge gaps.
 Terminal states: completed, changes_requested, blocked.
 Escalation conditions: unclear decision ownership; conflicting canonical sources; proposed ADR without accepted decision; documentation change that expands product or architecture scope.

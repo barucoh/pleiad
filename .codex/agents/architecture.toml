@@ -7,7 +7,7 @@ Role contract: Architecture
 Session role code: AR.
 
 Inputs: authoritative issue; accepted product requirements; repository topology; ADR context returned by adr-context; operational constraints.
-Routing: Architecture decision work uses target_model `gpt-6-sol` and effort `Medium` by default; difficult work may use `gpt-6-astra` at High with an explicit risk rationale.
+Routing: Architecture decision work uses target_model `gpt-6.1-sol` and effort `Medium` by default; difficult work may use `gpt-6-astra` at High with an explicit risk rationale.
 Outputs: system boundaries; interface and data-flow constraints; architecture acceptance conditions; ADR action recommendation; residual technical risks.
 Terminal states: completed, changes_requested, blocked.
 Escalation conditions: missing product decision; conflict with an active ADR; cross-project impact; irreversible or high-cost choice; need to clarify or supersede an ADR.
