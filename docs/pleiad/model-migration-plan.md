@@ -4,7 +4,7 @@ Pleiad 0.1.2 already routes Codex work to GPT-6 Astra, GPT-6.1 Sol, and GPT-6 Lu
 
 ## Model choice
 
-OpenAI's [model selection guide](https://developers.openai.com/api/docs/guides/model-selection) describes Astra for ambiguous or demanding work, 6.1 Sol for complex work balancing capability and cost, and Luna for focused, frequent tasks. The [latest-model guide](https://developers.openai.com/api/docs/guides/latest-model) gives the same broad progression. These are starting points for Pleiad task routing, not proof that a role always needs one model. Verify exact model IDs and reasoning efforts in the Codex host before dispatch; product availability can differ from API availability.
+OpenAI's [model selection guide](https://developers.openai.com/api/docs/guides/model-selection) positions Astra for ambiguous or demanding work, 6.1 Sol for complex work balancing capability and cost, and Luna for focused, frequent tasks. The [latest-model guide](https://developers.openai.com/api/docs/guides/latest-model) gives the same broad progression. These are starting points for Pleiad task routing, not proof that a role always needs one model. Verify exact model IDs and reasoning efforts in the Codex host before dispatch; product availability can differ from API availability.
 
 | Workload | Current Pleiad route | Decision to validate |
 | --- | --- | --- |
