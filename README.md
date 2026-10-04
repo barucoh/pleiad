@@ -18,6 +18,7 @@ See [installation](docs/installation.md) for local and version-pinned Git-backed
 Bootstrap and upgrade always inspect first, report a deterministic dry run, preserve project-owned content, stop on managed drift or ambiguous ownership, and require explicit approval before repository writes. Apply is idempotent and followed by a drift check.
 
 See [upgrading](docs/upgrading.md) for the two-layer plugin and repository migration model.
+See the [GPT-6 model migration plan](docs/pleiad/model-migration-plan.md) for model-routing evaluation and rollout.
 
 See the managed [coordination policy](docs/pleiad/coordination.md), [role contracts](docs/pleiad/role-contracts.md), and [native task-boundary hook guardrails](docs/pleiad/hooks.md) for the native delivery-cell model: Coordinator supervises a dedicated Implementation, QA, and Reviewer cell while GitHub remains the durable authority.
 
