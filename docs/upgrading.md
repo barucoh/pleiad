@@ -5,6 +5,8 @@ Pleiad upgrades have two independent layers. Pleiad is an Agentic SDLC; its new 
 1. Update or reinstall the plugin package from its marketplace, then start a new Codex session.
 2. Invoke `upgrade-pleiad` inside each adopted repository to migrate repository-native artifacts.
 
+A verified managed manifest from an earlier `0.1.x` release can upgrade to the current patch. The historical pre-relaunch `1.0.0` source installation is also recognized. In both cases, every recorded managed file and block hash must still match before apply; malformed versions, future versions, and drift remain conflicts.
+
 The repository migration first reports a deterministic dry run. It updates only recognized managed files or marked managed blocks, preserves project-owned Codex configuration and create-if-missing ADR files, stops on ambiguous ownership or modified managed hashes, validates the result, and records the applied schema and plugin version only after success. Run `python <plugin-root>/scripts/manage_repository.py check --target <repository>` after apply and in drift audits.
 
 The Pleiad 0.1.0 migration recognizes an installed `agentic-sdlc` v0.3.0 managed state, verifies every recorded legacy hash before changing it, then replaces it with Pleiad paths, markers, schema IDs, and managed hashes. It removes only verified old managed Pleiad-identity paths; a stale or modified legacy path stops as a conflict. A second apply is a no-op. It also continues to recognize canonical v0.2.0 generated agent files and removes only the exact obsolete generated `.codex/config.toml` role registry. A customized legacy registry stops as a conflict; unrelated project-owned `.codex/config.toml` content is preserved.

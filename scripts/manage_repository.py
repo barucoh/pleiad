@@ -188,6 +188,19 @@ def desired_manifest_text(project_name: str) -> str:
     return json.dumps(desired_manifest_value(project_name), indent=2, sort_keys=True) + "\n"
 
 
+def supported_installed_version(version: object) -> bool:
+    """Allow verified older 0.1.x state and the historical pre-relaunch 1.0.0 source."""
+    if not isinstance(version, str):
+        return False
+    if version == plugin_version():
+        return True
+    if version == "1.0.0":
+        return True
+    installed = re.fullmatch(r"0\.1\.(0|[1-9]\d*)", version)
+    current = re.fullmatch(r"0\.1\.(0|[1-9]\d*)", plugin_version())
+    return bool(installed and current and int(installed.group(1)) < int(current.group(1)))
+
+
 def manifest_validation_errors(target: Path, installed: dict, project_name: str) -> list[str]:
     if not (target / MANIFEST_PATH).exists():
         return []
@@ -201,8 +214,8 @@ def manifest_validation_errors(target: Path, installed: dict, project_name: str)
     is_v1 = installed.get("schema_version") == 1
     if installed.get("schema_version") not in {1, MANIFEST_SCHEMA_VERSION}:
         errors.append(f"managed-state schema_version must be {MANIFEST_SCHEMA_VERSION}")
-    if installed.get("plugin_version") != plugin_version():
-        errors.append(f"managed-state plugin_version must be {plugin_version()}")
+    if not supported_installed_version(installed.get("plugin_version")):
+        errors.append(f"managed-state plugin_version is not a supported upgrade source for {plugin_version()}")
     if installed.get("project_name") != project_name:
         errors.append(f"managed-state project_name must be {project_name!r}")
 

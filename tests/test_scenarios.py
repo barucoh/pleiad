@@ -1378,6 +1378,32 @@ class RepositoryStateTests(unittest.TestCase):
         self.assertIn("conflict: .pleiad/managed.json", result.stdout)
         self.assertIn(reason_fragment, result.stdout)
 
+    def test_verified_prior_version_upgrade_updates_manifest_and_config(self) -> None:
+        for old_version in ("0.1.1", "1.0.0"):
+            with self.subTest(old_version=old_version):
+                target, _ = self.apply_fixture("customized_repository", "Customized Fixture")
+                config_path = target / ".pleiad/config.yaml"
+                config = config_path.read_text(encoding="utf-8").replace(
+                    f"applied_plugin_version: {manage_repository.plugin_version()}",
+                    f"applied_plugin_version: {old_version}",
+                )
+                config_path.write_text(config, encoding="utf-8")
+                manifest_path = target / ".pleiad/managed.json"
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                manifest["plugin_version"] = old_version
+                manifest["files"][".pleiad/config.yaml"] = manage_repository.digest_path(config_path)
+                manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+                actions, writes, obsolete = manage_repository.plan(target, "Customized Fixture")
+                self.assertFalse([action for action in actions if action.classification == "conflict"])
+                updates = {action.path.as_posix() for action in actions if action.classification == "update"}
+                self.assertTrue({".pleiad/config.yaml", ".pleiad/managed.json"} <= updates)
+                manage_repository.apply(target, writes, obsolete, "Customized Fixture")
+                current = json.loads(manifest_path.read_text(encoding="utf-8"))
+                self.assertEqual(current["plugin_version"], manage_repository.plugin_version())
+                final, _, _ = manage_repository.plan(target, "Customized Fixture")
+                self.assertFalse([action for action in final if action.classification in {"conflict", "update", "create", "delete", "managed-block-update"}])
+
     def test_manifest_plugin_version_drift_is_a_conflict(self) -> None:
         target, _ = self.apply_fixture("customized_repository", "Customized Fixture")
         manifest_path = target / ".pleiad/managed.json"
