@@ -5,6 +5,12 @@ description: Coordinate Pleiad role work, durable issue-backed sessions, structu
 
 # Coordinate Pleiad
 
+Preserve direct peer lifecycle routes and independent QA/review; Coordinator supervision does not impersonate specialists or relay every peer event.
+
+Coordinator is the human-facing owner of cell progress, activation, supervision, recovery, and consolidated outcome reporting. When a persistent home task delegates an issue Coordinator, progress and outcomes stay within that coordination chain. Human authorization for the cell workflow covers scoped internal peer coordination, subject to host/tool permission requirements; the plugin grants no permissions and cannot bypass host restrictions. Human product decisions, credentials/permissions, acceptance, and merge authority remain explicit, and voluntary inspection of specialist tasks is welcome.
+
+IM/QA/RV use native task messaging and structured handoffs for readiness, findings, corrections, and completion; they must not ask the human to copy prompts, open peer tasks, or manually continue routine delivery. Escalate unavailable task control, unresolved delivery uncertainty, or missing authorization to Coordinator. Coordinator exhausts safe recovery within existing authority and host/tool permissions, then presents one actionable human blocker only when necessary through the coordination chain. A GitHub-reconstructible copy/paste fallback is a last-resort recovery artifact, never the normal user workflow.
+
 1. Read the authoritative issue, applicable `AGENTS.md`, `.pleiad/config.yaml`, and `docs/pleiad/role-contracts.md`.
 2. Route ADR discovery only through `adr-context`.
 3. Classify execution before delegation:
@@ -16,10 +22,10 @@ description: Coordinate Pleiad role work, durable issue-backed sessions, structu
 7. Persist the requested outcome in an authoritative GitHub issue, PR, review comment, commit, ADR, or canonical document. A message is only an optional wake-up optimization.
 8. Send any optional wake-up with a 20–30 second watchdog, defaulting to the configured 25 seconds, and retain independent state per target.
 9. Treat timeout, handler failure, and delivered-but-acknowledgement-failed as `DELIVERY_UNKNOWN`, not failure. A later transport observation cannot make it retryable. Record reconciliation of the exact operation ID against the target task and GitHub before retrying; only recorded `ABSENT` permits retry. Delivered or applied operations are terminal and cannot be reopened or repeated. If reconciliation is unavailable, preserve uncertainty and stop.
-10. Provide a GitHub-reconstructible copy/paste fallback containing operation ID, issue or PR URL, objective, expected output, evidence, and next owner. Never persist thread IDs.
+10. Retain a last-resort GitHub-reconstructible copy/paste fallback containing operation ID, issue or PR URL, objective, expected output, evidence, and next owner. Never persist thread IDs.
 11. Establish a native delivery cell: Coordinator binds the IM, QA, and RV user-visible tasks and their machine-local handles, then supervises rather than relays. IM sends IMPLEMENTATION_READY directly to QA and RV; QA sends QA_PASSED or QA_CHANGES_REQUESTED directly to RV and IM; RV leads verification, returns CHANGES_REQUESTED directly to the same IM, and emits DELIVERY_CELL_COMPLETED/HUMAN_MERGE_READY to Coordinator only after QA pass and clean independent review at the exact SHA.
 
-12. Coordinator receives routine status from durable GitHub evidence, and direct peer messages are optional wake-ups. Return to Coordinator early only for BLOCKED, escalation, or DELIVERY_UNKNOWN. Reconcile the exact UUID before retrying unknown delivery; never duplicate an applied peer transition. If task control is unavailable, stop as blocked with a reconstructible fallback.
+12. Coordinator receives routine status from durable GitHub evidence, and direct peer messages are optional wake-ups. Return to Coordinator early only for BLOCKED, escalation, or DELIVERY_UNKNOWN. Reconcile the exact UUID before retrying unknown delivery; never duplicate an applied peer transition. If task control is unavailable, escalate to Coordinator with a reconstructible fallback for safe recovery.
 
 QA runs behavioral commands in a host-provisioned isolated disposable workspace-write QA clone derived from the implementation commit. It starts detached at the exact SHA with the canonical Implementation ref present at that SHA; source mutation, commits, pushes, local ref changes, and Implementation-ref changes are forbidden. Invoke the repository QA workspace check for exact-head, ref-map, and clone-common-dir evidence. Codex host/task-control remains responsible for provisioning and removing the isolated clone; report blocked if cleanup/isolation is unavailable or drift is detected.
 

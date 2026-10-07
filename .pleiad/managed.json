@@ -1,19 +1,19 @@
 {
   "files": {
     ".codex/agents/architecture.toml": "69cffca224aa24c0a020102ce2b33122890f621576dc4c78482097f52f2ae35a",
-    ".codex/agents/coordinator.toml": "94790e72602e45b05d09cfb36fecf3651955be254e20e83dd63e055416881305",
-    ".codex/agents/implementation.toml": "69554bc4205ef02ebc1376bdc692d51cc79de49fc3f3465e913714f0111b8d97",
+    ".codex/agents/coordinator.toml": "c3042c48b63e42121dc673481355ef17cb8bd96ba8e410b551e66fe4bd6c9c04",
+    ".codex/agents/implementation.toml": "538d5ae2808fcdb74d4bb870bb741d4948fa5ea2596c0cfaa270be27fcac30d9",
     ".codex/agents/knowledge_steward.toml": "7fc7bb5cdcf65b21e5cb3cced8186e6cda144cceac34c43fd57eead277431e81",
     ".codex/agents/product.toml": "5e2022744af15d74917b374a3a5886b03401cea1aa2df466d6fbd1e38739d8ef",
-    ".codex/agents/qa.toml": "09797ba306a5c280c5d96ecb6074b5a9d15ddc01e050e8180b64e972263ea061",
-    ".codex/agents/reviewer.toml": "933c894848d54a383c86746d30e529bfb0100e3ee506c1306f23fc1154f4397e",
+    ".codex/agents/qa.toml": "70acb83efe6e92337b8f43243dc4e2b647fc301d3cd9793939b4705ee42c3077",
+    ".codex/agents/reviewer.toml": "ef2edd6f80c9d5f06277aba185fcd455387ee8f00470d4cd6bacd72b9dc1a96f",
     ".codex/hooks.json": "fd05ae3a9496e09835cce179c673dd96ffb41842d78b1b05409a2ae099e059c8",
-    ".pleiad/config.yaml": "e43bb8d56b200b19a1e40cdac48f116857d8946b01d2a55e5ada3c8e8f90836f",
+    ".pleiad/config.yaml": "3bb718c03147c41732b3c6397ead91aad85f99dd553052066f2adfd36b7b68b9",
     ".pleiad/handoff-template.json": "56d01b55c0e44de6165aaa34085b13c131d36f9d23de94c54b00f3f8f4f302a9",
     ".pleiad/handoff.schema.json": "86d6091ff9f2f302f4c35c40b71dba68090ad1dac86b551dea06636eb382ee9b",
-    "docs/pleiad/coordination.md": "bbd392e2817c78380a86ac26a00b6f716376954d47c343f09813bdda484ddd11",
+    "docs/pleiad/coordination.md": "4be44cb92c86faf1359a1adda67594d3647b4669859e36a0322660c32a2e3eb0",
     "docs/pleiad/hooks.md": "3d1f412e7e42879224202ee5fba82f3ed011acb861b744950d139150a7cfd756",
-    "docs/pleiad/role-contracts.md": "397c06beebf094394aa6dea78fa2e3d3e4e92871fb7dde1f82d612665925359d",
+    "docs/pleiad/role-contracts.md": "a0dcee70ad2f911566b727b8c990ae7359b2c948caab7d14d07a21f9cc9a869e",
     "scripts/coordination_protocol.py": "12ab9d47f3c0eb29c8d6027067d3f672a50c7b2494af0d3876b86d43562ed190",
     "scripts/pretool_handoff_guard.py": "0b9ab02caeed2ecb5c0c90be89cdd160d2d08e8fc9930abe6522f33004b2f449",
     "scripts/qa_workspace.py": "fd26a79bb4910192d5cc039ff363ab6b0f3ad2dc7dd8d194ab2f5ab2ac0b7417",
@@ -21,9 +21,9 @@
     "scripts/validate_hooks.py": "0a6f56d94fbe85273bceb5b4eeaeca96912e18c0a5db205679a1040dc28039e3"
   },
   "managed_blocks": {
-    "AGENTS.md": "452042a1b5b8718b6294d870aa1946f7e85d47534488efac196b93af529510aa"
+    "AGENTS.md": "dc0e928ff4fe6b969fe975b5330fd6d40a517821d9844301b98c33151cfef449"
   },
-  "plugin_version": "0.1.4",
+  "plugin_version": "0.1.5",
   "project_name": "Pleiad",
   "schema_version": 2
 }

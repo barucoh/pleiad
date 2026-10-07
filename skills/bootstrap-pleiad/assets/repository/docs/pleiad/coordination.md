@@ -30,6 +30,14 @@ flowchart LR
   GH -.reconcile uncertain transport.-> CO
 ```
 
+## Human-facing ownership and recovery
+
+Coordinator is the human-facing owner of cell progress, activation, supervision, recovery, and consolidated outcome reporting. When a persistent home task delegates an issue Coordinator, progress and outcomes stay within that coordination chain. Human authorization for the cell workflow covers scoped internal peer coordination, subject to host/tool permission requirements; the plugin grants no permissions and cannot bypass host restrictions. Human product decisions, credentials/permissions, acceptance, and merge authority remain explicit, and voluntary inspection of specialist tasks is welcome.
+
+IM/QA/RV use native task messaging and structured handoffs for readiness, findings, corrections, and completion; they must not ask the human to copy prompts, open peer tasks, or manually continue routine delivery. Escalate unavailable task control, unresolved delivery uncertainty, or missing authorization to Coordinator. Coordinator exhausts safe recovery within existing authority and host/tool permissions, then presents one actionable human blocker only when necessary through the coordination chain. A GitHub-reconstructible copy/paste fallback is a last-resort recovery artifact, never the normal user workflow.
+
+Direct peer lifecycle routes and independent QA/review remain intact; Coordinator must not impersonate specialists or relay every peer event.
+
 ## Native delivery-cell lifecycle
 
 Implementation sends `IMPLEMENTATION_READY` with exact PR/SHA and passed local/CI evidence directly to QA and Reviewer. QA sends `QA_PASSED` or `QA_CHANGES_REQUESTED` directly to Reviewer and Implementation. Reviewer leads verification: it consolidates findings, sends `CHANGES_REQUESTED` directly to the same Implementation task, receives the corrected readiness handoff, and reactivates QA when changed acceptance behavior requires recheck. When QA has passed and Reviewer has no actionable findings at the same exact PR/SHA, Reviewer sends `DELIVERY_CELL_COMPLETED` / `HUMAN_MERGE_READY` directly to Coordinator. Human approval and merge remain explicit.
@@ -72,6 +80,6 @@ Name every new user-visible task `#<issue number> <role code> - <issue title>` u
 
 Every durable handoff carries explicit target model, effort, and one-sentence rationale. Coordinator uses 6-Astra/Medium; Product, Architecture, QA, and Reviewer use 6.1-Sol/Medium by default; routine Implementation and Knowledge Steward use 6-Luna/Low. Nontrivial Implementation uses 6.1-Sol, difficult tasks may use 6-Astra/High with a risk rationale, and corrections return to the same Implementation task. Handoff terminal states are `completed`, `changes_requested`, and `blocked`; transport may additionally report `DELIVERY_UNKNOWN`.
 
-Before every issue-backed task creation and every required cross-task send, the Coordinator calls the repository-native `dispatch_issue_task` or `send_cross_task_handoff` helper from `scripts/coordination_protocol.py`. Each helper validates the complete versioned envelope with `validate_handoff` and returns actionable errors without invoking the transport callback when invalid. This is the sole pre-dispatch authority; native task messaging remains transport only.
+Before every issue-backed task creation and every required cross-task send, the sending role calls the repository-native `dispatch_issue_task` or `send_cross_task_handoff` helper from `scripts/coordination_protocol.py`. Each helper validates the complete versioned envelope with `validate_handoff` and returns actionable errors without invoking the transport callback when invalid. This is the sole pre-dispatch authority; native task messaging remains transport only.
 
 QA verification uses a host-provisioned isolated disposable clone derived from the exact implementation commit, never a shared Git worktree. It starts detached at the exact SHA and carries a local canonical Implementation ref at that SHA. Behavioral tools may create caches/build/test outputs, but QA must not mutate source, commit, push, alter local refs, or alter the Implementation ref. The repository QA check records source status/diff, detached HEAD, local ref map, Implementation ref, and Git common-directory isolation before and after; the host/task-control still provisions and removes the clone. QA reports blocked on drift, unavailable cleanup, or an unproven clone boundary.

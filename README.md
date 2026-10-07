@@ -17,6 +17,10 @@ See [installation](docs/installation.md) for local and version-pinned Git-backed
 
 Bootstrap and upgrade always inspect first, report a deterministic dry run, preserve project-owned content, stop on managed drift or ambiguous ownership, and require explicit approval before repository writes. Apply is idempotent and followed by a drift check.
 
+Coordinator is the human-facing owner of cell progress, activation, supervision, recovery, and consolidated outcome reporting. When a persistent home task delegates an issue Coordinator, progress and outcomes stay within that coordination chain. Human authorization for the cell workflow covers scoped internal peer coordination, subject to host/tool permission requirements; the plugin grants no permissions and cannot bypass host restrictions. Human product decisions, credentials/permissions, acceptance, and merge authority remain explicit, and voluntary inspection of specialist tasks is welcome.
+
+IM/QA/RV use native task messaging and structured handoffs for readiness, findings, corrections, and completion; they must not ask the human to copy prompts, open peer tasks, or manually continue routine delivery. Escalate unavailable task control, unresolved delivery uncertainty, or missing authorization to Coordinator. Coordinator exhausts safe recovery within existing authority and host/tool permissions, then presents one actionable human blocker only when necessary through the coordination chain. A GitHub-reconstructible copy/paste fallback is a last-resort recovery artifact, never the normal user workflow. Direct peer lifecycle routes and independent QA/review remain intact.
+
 See [upgrading](docs/upgrading.md) for the two-layer plugin and repository migration model.
 See the [GPT-6 model migration plan](docs/pleiad/model-migration-plan.md) for model-routing evaluation and rollout.
 
