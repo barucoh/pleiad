@@ -33,7 +33,7 @@ if not re.fullmatch(r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za
     errors.append("plugin version must be SemVer")
 
 skills = sorted((ROOT / "skills").glob("*/SKILL.md"))
-required = {"bootstrap-pleiad", "adr-context", "upgrade-pleiad", "coordinate-pleiad"}
+required = {"bootstrap-pleiad", "adr-context", "upgrade-pleiad", "coordinate-pleiad", "captain-pleiad"}
 found = {p.parent.name for p in skills}
 missing = required - found
 if missing:
@@ -89,6 +89,7 @@ if "schema_version: 2" not in config:
     errors.append("self-hosted repository must use Pleiad schema 2")
 
 expected_roles = {
+    "captain",
     "coordinator",
     "product",
     "architecture",
@@ -140,7 +141,7 @@ for path in sorted(agent_root.glob("*.toml")):
 if role_names != expected_roles:
     errors.append(f"agent roles differ: expected {sorted(expected_roles)}, found {sorted(str(x) for x in role_names)}")
 if set(ROLE_CODES) != expected_roles or len(set(ROLE_CODES.values())) != len(expected_roles):
-    errors.append("session role codes must map uniquely to all seven roles")
+    errors.append("session role codes must map uniquely to all eight roles")
 for role_name, role_code in ROLE_CODES.items():
     title = format_session_title(5, role_code, f"Validate {role_name} session title behavior")
     if len(title) > SESSION_TITLE_MAX_CHARACTERS or not title.startswith(f"#5 {role_code} - "):

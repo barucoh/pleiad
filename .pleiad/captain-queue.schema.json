@@ -1,0 +1,406 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "repository",
+    "cap",
+    "cells"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "captain-queue/v1"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "cap": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "issue_number",
+          "issue_url",
+          "title",
+          "ownership",
+          "dependencies",
+          "priority",
+          "issue_state",
+          "state",
+          "lease",
+          "blocker",
+          "assignment",
+          "progress",
+          "attempts",
+          "recoveries",
+          "evidence",
+          "cell_id",
+          "pr_url",
+          "branch",
+          "denials",
+          "sha"
+        ],
+        "properties": {
+          "issue_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "issue_url": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ownership": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "issue_number",
+                "requires"
+              ],
+              "properties": {
+                "issue_number": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "requires": {
+                  "type": "string",
+                  "enum": [
+                    "closed",
+                    "local_review_ready"
+                  ]
+                }
+              }
+            }
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "issue_state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "active",
+              "blocked",
+              "local_review_ready",
+              "closed",
+              "cancelled"
+            ]
+          },
+          "lease": {
+            "type": "boolean"
+          },
+          "blocker": {
+            "type": "string"
+          },
+          "assignment": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "generation",
+                  "objective",
+                  "model",
+                  "effort",
+                  "rationale",
+                  "authorization"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "generation": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "objective": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "model": {
+                    "type": "string",
+                    "enum": [
+                      "gpt-6-astra"
+                    ]
+                  },
+                  "effort": {
+                    "type": "string",
+                    "enum": [
+                      "Medium",
+                      "High"
+                    ]
+                  },
+                  "rationale": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "authorization": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "assignment_id",
+                  "generation",
+                  "cell_id",
+                  "state",
+                  "sha",
+                  "pr_url",
+                  "next_action",
+                  "evidence",
+                  "cell_digest"
+                ],
+                "properties": {
+                  "assignment_id": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "generation": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "cell_id": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "IMPLEMENTATION_ACTIVE",
+                      "IMPLEMENTATION_READY",
+                      "CHANGES_REQUESTED",
+                      "CORRECTION_ACTIVE",
+                      "LOCAL_REVIEW_READY"
+                    ]
+                  },
+                  "sha": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{40}$"
+                  },
+                  "pr_url": {
+                    "type": "string"
+                  },
+                  "next_action": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^https://github\\.com/"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true
+                  },
+                  "cell_digest": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "assignment_id",
+                "generation",
+                "kind",
+                "status",
+                "evidence"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "assignment_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "generation": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "activate",
+                    "continue"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "unknown",
+                    "failed",
+                    "absent",
+                    "applied"
+                  ]
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^https://github\\.com/"
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "recoveries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "generation",
+                "observed_status",
+                "evidence"
+              ],
+              "properties": {
+                "generation": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "observed_status": {
+                  "type": "string",
+                  "enum": [
+                    "stopped",
+                    "lost-confirmed"
+                  ]
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^https://github\\.com/"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^https://github\\.com/"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "cell_id": {
+            "type": "string"
+          },
+          "pr_url": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "denials": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "reason",
+                "status",
+                "evidence"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "status": {
+                  "enum": [
+                    "unresolved",
+                    "resolved"
+                  ]
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^https://github\\.com/"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              }
+            }
+          },
+          "sha": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{40})?$"
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/barucoh/pleiad/schemas/captain-queue-v1.json",
+  "title": "Captain project queue"
+}

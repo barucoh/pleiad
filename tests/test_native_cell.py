@@ -346,7 +346,7 @@ class NativeAdoptionTests(unittest.TestCase):
             managed.apply(target, writes, obsolete, "Pleiad")
             self.assertIn("execution_mode: native", (target / ".pleiad/config.yaml").read_text())
             self.assertEqual(checkpoint.read_bytes(), before)
-            self.assertEqual(json.loads((target / ".pleiad/managed.json").read_text())["schema_version"], 3)
+            self.assertEqual(json.loads((target / ".pleiad/managed.json").read_text())["schema_version"], managed.MANIFEST_SCHEMA_VERSION)
             self.assertFalse([a for a in managed.plan(target, "Pleiad")[0] if a.classification not in {"unchanged", "preserve"}])
 
     def test_native_managed_files_appear_in_fresh_bootstrap_and_modified_owner_file_conflicts(self):

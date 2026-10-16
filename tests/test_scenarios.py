@@ -42,6 +42,7 @@ from check_latest_release import validate_release_transition  # noqa: E402
 
 
 EXPECTED_ROLES = {
+    "captain",
     "coordinator",
     "product",
     "architecture",
@@ -119,10 +120,11 @@ class RoleContractTests(unittest.TestCase):
 
 
 class SessionTitleTests(unittest.TestCase):
-    def test_all_seven_role_codes_are_stable_and_complete(self) -> None:
+    def test_all_eight_role_codes_are_stable_and_complete(self) -> None:
         self.assertEqual(
             ROLE_CODES,
             {
+                "captain": "CP",
                 "coordinator": "CO",
                 "product": "PD",
                 "architecture": "AR",

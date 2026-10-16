@@ -81,7 +81,7 @@ Official references: [Hooks](https://learn.chatgpt.com/docs/hooks), [Codex SDK](
 
 ## Session titles and routing
 
-Name every new user-visible task `#<issue number> <role code> - <issue title>` using `CO`, `PD`, `AR`, `IM`, `QA`, `RV`, or `KS`; reject unknown codes. The maximum full title is 36 Unicode characters; truncate only the issue-title segment and end it with one `…`.
+Name every new user-visible task `#<issue number> <role code> - <issue title>` using `CP`, `CO`, `PD`, `AR`, `IM`, `QA`, `RV`, or `KS`; reject unknown codes. The maximum full title is 36 Unicode characters; truncate only the issue-title segment and end it with one `…`.
 
 Every durable handoff carries explicit target model, effort, and one-sentence rationale. Coordinator uses 6-Astra/Medium; Product, Architecture, QA, and Reviewer use 6.1-Sol/Medium by default; routine Implementation and Knowledge Steward use 6-Luna/Low. Nontrivial Implementation uses 6.1-Sol, difficult tasks may use 6-Astra/High with a risk rationale, and corrections return to the same Implementation task. Handoff terminal states are `completed`, `changes_requested`, and `blocked`; transport may additionally report `DELIVERY_UNKNOWN`.
 

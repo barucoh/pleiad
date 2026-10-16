@@ -1,11 +1,12 @@
 <!-- pleiad:managed coordination/v2 -->
 # Native Coordinator delivery cell
 
-Default: one authoritative issue, one durable Coordinator (CO), one writable Implementation (IM) worktree/branch, one PR. CO executes native IM, independent QA, independent Reviewer (RV) and necessary PD Product, AR Architecture, KS Knowledge Steward or bounded read-only research agents. Standalone CO works without Captain. Captain multi-cell admission is a separate follow-up; do not create an integration branch.
+Default: one authoritative issue, one durable Coordinator (CO), one writable Implementation (IM) worktree/branch, one PR. CO executes native IM, independent QA, independent Reviewer (RV) and necessary PD Product, AR Architecture, KS Knowledge Steward or bounded read-only research agents. Standalone CO works without Captain. [Captain](captain.md) supervises multiple durable COs with queue admission, dependencies and writable ownership checks. CP/CO is the limited cross-session transport; specialists stay in each CO tree. Do not create an integration branch.
 
 ```mermaid
 flowchart TD
-    Owner --> CO[Durable issue Coordinator]
+    Owner --> CP[Persistent Captain project home]
+    CP --> CO[Durable issue Coordinator]
     CO --> IM[Sole source writer]
     CO --> QA[Independent isolated QA clone]
     CO --> RV[Independent Reviewer]
@@ -69,7 +70,7 @@ Run `resume --observed-sha <head> --observed-pr <url> --observed-issue-url <issu
 
 Applied lifecycle event IDs and per-recipient delivery UUIDs are separate. Unknown delivery is an overlay: reconcile the exact recipient as absent or applied. This cannot reopen or replay its applied parent event. A retry, if absent, reuses the same assignment/event context and a new recipient attempt; never reapply lifecycle state. Local-review readiness is idempotent; a final outcome notification may have its own unknown recipient overlay without replaying or erasing the verified lifecycle outcome. Only recorded absent recipients can be retried; applied recipients are idempotent. Native denial records remain unresolved through timeouts or absence; only supported resolution with durable evidence clears them.
 
-Coordinator owns supervision and recovery through the coordination chain, including a persistent home task when present. Human authorization covers scoped internal peer coordination, subject to native controls. Escalate one actionable human blocker only after safe recovery is exhausted. Copy/paste is a last-resort recovery artifact. Human decisions/acceptance/merge and voluntary inspection remain explicit; preserve independent QA/review.
+Coordinator owns supervision and recovery through the coordination chain and Captain when a project home is present. Human authorization covers scoped internal peer coordination, subject to native controls. Escalate one actionable human blocker only after safe recovery is exhausted. Copy/paste is a last-resort recovery artifact. Human decisions/acceptance/merge and voluntary inspection remain explicit; preserve independent QA/review.
 
 ## Explicit legacy compatibility
 

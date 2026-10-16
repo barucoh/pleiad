@@ -17,7 +17,7 @@ Typed compact assignments/results/checkpoints preserve event versus recipient id
 
 ## Consequences
 
-Native collaboration reduces transport envelopes while retaining specialist accountability. The parent must have sufficient IM/QA capabilities; unavailable isolation/permission is surfaced honestly. CO cannot author QA/RV verdicts through supported adapter paths. Missing local receipts require native/GitHub reconciliation before reuse. Resource lifecycle and Captain admission remain separate follow-up slices. This proposal requires owner review; it is not an Active ADR yet.
+Native collaboration reduces transport envelopes while retaining specialist accountability. The parent must have sufficient IM/QA capabilities; unavailable isolation/permission is surfaced honestly. CO cannot author QA/RV verdicts through supported adapter paths. Missing local receipts require native/GitHub reconciliation before reuse. Captain admission is implemented by #27: persistent CP supervises durable COs, reserves cap/dependencies/nonoverlapping writable ownership before dispatch, and reconciles exact failed/unknown recipient attempts before retry. Queue state and per-CO progress are portable; observed transport bindings stay local. Local-review readiness never implies issue closure or merge. Resource lifecycle remains a separate follow-up slice. This proposal requires owner review; it is not an Active ADR yet.
 
 ## Supersedes
 

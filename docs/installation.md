@@ -53,3 +53,5 @@ After publication, install Pleiad from the shared Plugins Directory and begin wo
 Pleiad has a new plugin identifier. Remove the old installation with `codex plugin remove agentic-sdlc@agentic-sdlc-public` (replace the marketplace selector if your team uses a different one), then install `pleiad` from the Pleiad marketplace and start a new session. This does not modify adopted repositories; run `upgrade-pleiad` in each one afterwards.
 
 Codex’s saved-project label and local checkout path are host UI state, so Pleiad does not edit them. After the repository rename has merged, use Codex’s supported saved-project UI to rename or remove and re-add the project, pointing it to the new local `pleiad` checkout.
+
+Managed Captain support adds `.codex/agents/captain.toml`, `.pleiad/captain-queue.schema.json`, `scripts/captain_queue.py` and `docs/pleiad/captain.md`. Manifest schema 4 validates prior schema 1/2/3 state before adding these files; existing native/legacy checkpoints are preserved. See [Captain supervision](pleiad/captain.md).

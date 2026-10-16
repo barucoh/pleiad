@@ -124,7 +124,7 @@
   "$defs": {
     "role": {
       "type": "string",
-      "enum": ["coordinator", "product", "architecture", "implementation", "qa", "reviewer", "knowledge_steward", "human_owner"]
+      "enum": ["captain", "coordinator", "product", "architecture", "implementation", "qa", "reviewer", "knowledge_steward", "human_owner"]
     },
     "stringList": {
       "type": "array",

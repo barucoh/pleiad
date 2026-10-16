@@ -55,6 +55,7 @@ SUPPORTED_SCHEMA_KEYWORDS = {
 SESSION_TITLE_FORMAT = "#{issue_number} {role_code} - {issue_title}"
 SESSION_TITLE_MAX_CHARACTERS = 36
 ROLE_CODES = {
+    "captain": "CP",
     "coordinator": "CO",
     "product": "PD",
     "architecture": "AR",
@@ -66,6 +67,7 @@ ROLE_CODES = {
 TARGET_MODELS = ("gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra")
 EFFORT_LEVELS = ("Low", "Medium", "High")
 ROUTING_MATRIX = {
+    "captain": {"gpt-6-astra": {"Medium", "High"}},
     "coordinator": {"gpt-6-astra": {"Medium", "High"}},
     "product": {"gpt-6.1-sol": {"Medium"}, "gpt-6-astra": {"High"}},
     "architecture": {"gpt-6.1-sol": {"Medium"}, "gpt-6-astra": {"High"}},
@@ -87,6 +89,7 @@ ROUTING_POLICY_VERSION = "repository-native-v1"
 ROUTING_CONFIG_LINES = (
     "routing_policy: repository-native-v1",
     "routing_matrix:",
+    '  captain: "gpt-6-astra/Medium|High-with-risk-rationale"',
     '  coordinator: "gpt-6-astra/Medium|High-with-risk-rationale"',
     '  product: "gpt-6.1-sol/Medium|gpt-6-astra/High-with-risk-rationale"',
     '  architecture: "gpt-6.1-sol/Medium|gpt-6-astra/High-with-risk-rationale"',
@@ -105,6 +108,10 @@ LIFECYCLE_CONFIG_LINES = (
     "qa_workspace_check: scripts/qa_workspace.py",
 )
 NATIVE_CONFIG_LINES = (
+    "project_supervision: captain-queue-v1",
+    "captain_checkpoint_schema: .pleiad/captain-queue.schema.json",
+    "captain_queue_runtime: scripts/captain_queue.py",
+    "captain_home_title: persistent-project-home",
     "execution_mode: native",
     "lifecycle_policy: native-cell-v1",
     'lifecycle_sequence: "IMPLEMENTATION_ACTIVE->IMPLEMENTATION_READY->CHANGES_REQUESTED->CORRECTION_ACTIVE->IMPLEMENTATION_READY->LOCAL_REVIEW_READY"',
@@ -171,6 +178,8 @@ def validate_session_title_config(config_text: str) -> list[str]:
     if missing_routing_lines:
         errors.append("routing policy is incomplete: " + ", ".join(missing_routing_lines))
     native = "execution_mode: native" in lines
+    if native and re.search(r"(?m)^captain_concurrency_cap: [1-9][0-9]*$", config_text) is None:
+        errors.append("captain_concurrency_cap must be a positive integer")
     mode_lines = [line for line in lines if line.startswith("execution_mode:")]
     if mode_lines and mode_lines not in [["execution_mode: native"], ["execution_mode: legacy-top-level"]]:
         errors.append("execution_mode must be native or explicit legacy-top-level")
@@ -234,8 +243,8 @@ def validate_routing(value: dict[str, Any]) -> list[str]:
             errors.append("corrections must use an allowed implementation model")
         if mode != "durable":
             errors.append("corrections require durable delivery")
-    if mode == "durable" and target_role == "coordinator" and model != "gpt-6-astra":
-        errors.append("Coordinator activation must use gpt-6-astra")
+    if mode == "durable" and target_role in {"captain", "coordinator"} and model != "gpt-6-astra":
+        errors.append("Captain/Coordinator activation must use gpt-6-astra")
     return errors
 
 
@@ -289,7 +298,7 @@ def canonicalize_and_validate_fallback(fallback: Any, operation_id: str, work_it
     result = {field: fallback[field] for field in fields}
     if result["operation_id"] != operation_id or not _valid_repository(result["repository"]):
         return None
-    if result["next_owner"] not in {"coordinator", "product", "architecture", "implementation", "qa", "reviewer", "knowledge_steward", "human_owner"}:
+    if result["next_owner"] not in {"captain", "coordinator", "product", "architecture", "implementation", "qa", "reviewer", "knowledge_steward", "human_owner"}:
         return None
     if not re.fullmatch(r"https://github\.com/" + re.escape(result["repository"]) + r"/(issues|pull)/[1-9][0-9]*", result["issue_or_pr_url"]):
         return None

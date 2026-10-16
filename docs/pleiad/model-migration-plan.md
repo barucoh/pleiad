@@ -6,6 +6,7 @@ OpenAI's [model selection guidance](https://developers.openai.com/api/docs/guide
 
 | Workload | Route |
 | --- | --- |
+| Captain (CP) | `gpt-6-astra` at Medium; High with a risk rationale |
 | Coordinator (CO) | `gpt-6-astra` at Medium; High with a risk rationale |
 | Product (PD) and Architecture (AR) | `gpt-6.1-sol` at Medium; Astra High for difficult work with a risk rationale |
 | Implementation (IM) | `gpt-6-luna` at Low for focused work; `gpt-6.1-sol` at Low through High for complex work; Astra High by exception |
