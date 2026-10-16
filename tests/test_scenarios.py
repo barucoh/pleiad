@@ -88,7 +88,8 @@ class RoleContractTests(unittest.TestCase):
             value = tomllib.loads(path.read_text(encoding="utf-8"))
             found.add(value["name"])
             self.assertTrue(value["description"])
-            self.assertIn(value["sandbox_mode"], {"read-only", "workspace-write"})
+            self.assertNotIn("sandbox_mode", value)
+            self.assertIn("Subagents inherit parent sandbox", value["developer_instructions"])
             for section in required_sections:
                 self.assertIn(section, value["developer_instructions"], f"{path}: {section}")
         self.assertEqual(found, EXPECTED_ROLES)
@@ -96,12 +97,12 @@ class RoleContractTests(unittest.TestCase):
 
     def test_separation_of_duties_and_read_only_research_boundary(self) -> None:
         implementation = tomllib.loads((self.roles / "implementation.toml").read_text(encoding="utf-8"))
-        self.assertIn("approving or merging own work", implementation["developer_instructions"])
-        self.assertIn("never as an ephemeral subagent", implementation["developer_instructions"])
+        self.assertIn("approving or merging own work", implementation["developer_instructions"].lower())
+        self.assertIn("same IM agent", implementation["developer_instructions"])
         for role in ("qa", "reviewer"):
             value = tomllib.loads((self.roles / f"{role}.toml").read_text(encoding="utf-8"))
             expected_mode = "workspace-write" if role == "qa" else "read-only"
-            self.assertEqual(value["sandbox_mode"], expected_mode)
+            self.assertNotIn("sandbox_mode", value)
             self.assertIn("independent", value["description"].lower())
             if role == "qa":
                 contract = value["developer_instructions"].lower()
@@ -348,8 +349,8 @@ class HandoffAndCoordinationTests(unittest.TestCase):
 
     def test_qa_workspace_is_disposable_and_source_immutable(self) -> None:
         contract = tomllib.loads((ROOT / "skills/bootstrap-pleiad/assets/repository/.codex/agents/qa.toml").read_text(encoding="utf-8"))["developer_instructions"].lower()
-        self.assertIn("isolated disposable qa clone", contract)
-        self.assertIn("behavioral tools may create caches/build/test outputs", contract)
+        self.assertIn("isolated detached clone", contract)
+        self.assertIn("declared caches/build/test outputs allowed", contract)
         self.assertIn("source mutation", contract)
 
     def test_qa_workspace_check_binds_exact_head_and_rejects_source_intent(self) -> None:
@@ -976,7 +977,7 @@ class RepositoryStateTests(unittest.TestCase):
         target.mkdir()
         project_name = "Legacy Repository"
         files: dict[str, str] = {}
-        for relative in manage_repository.MANAGED_PATHS:
+        for relative in manage_repository.MANIFEST_V2_MANAGED_PATHS:
             old_relative = manage_repository.legacy_path(relative)
             content = manage_repository.template_text(relative, project_name)
             content = content.replace("pleiad", "agentic-sdlc").replace("Pleiad", "Agentic SDLC").replace("applied_plugin_version: 0.1.0", "applied_plugin_version: 0.3.0")
@@ -1323,7 +1324,7 @@ class RepositoryStateTests(unittest.TestCase):
         target, _ = self.apply_fixture("customized_repository", "Customized Fixture")
         manifest_path = target / ".pleiad/managed.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        hook_assets = {".codex/hooks.json", "scripts/pretool_handoff_guard.py", "scripts/validate_hooks.py"}
+        hook_assets = {p.as_posix() for p in set(manage_repository.MANAGED_PATHS) - manage_repository.MANIFEST_V1_MANAGED_PATHS}
         manifest["schema_version"] = 1
         for relative in hook_assets:
             manifest["files"].pop(relative)

@@ -1,26 +1,20 @@
-<!-- pleiad:managed role-contracts/v1 -->
+<!-- pleiad:managed role-contracts/v2 -->
 # Role contracts
 
-The executable contracts are the standalone files in `.codex/agents/`. Each declares its inputs, outputs, terminal states, escalation conditions, forbidden actions, permission posture, and authority. The `name` field is the discovery source of truth.
+Standalone `.codex/agents/*.toml` files define behavior. The durable issue Coordinator executes approved native specialists; separate top-level specialists are an explicit legacy-top-level exception.
 
-| Role | Code | Owns | Permission posture | Separation boundary |
-|---|---|---|---|---|
-| Coordinator | CO | Human-facing progress, activation, supervision, recovery, consolidated outcomes, routing and readiness | Read-only repository | Does not implement, verify, approve, or merge |
-| Product | PD | User value, behavior, acceptance criteria | Read-only | Does not decide architecture or approve delivery |
-| Architecture | AR | Boundaries and architecture constraints | Read-only | Uses `adr-context`; does not implement or override ADRs |
-| Implementation | IM | Scoped changes and corrections | Workspace-write in its issue worktree | Never approves or merges its own work |
-| QA | QA | Independent behavioral verification | Host-provisioned isolated disposable workspace-write clone | May create test outputs, but does not modify source, commit, push, local refs, or review-approve |
-| Reviewer | RV | Independent correctness and risk review | Read-only against implementation | Does not modify, self-review, or merge |
-| Knowledge Steward | KS | Canonical documentation and ADR hygiene | Workspace-write in its issue worktree | Preserves Product/Architecture decision authority |
+| Role | Code | Ownership | Behavioral boundary |
+|---|---|---|---|
+| Coordinator | CO | Activation, supervision, correction, recovery, local review readiness | Non-writer; cannot author specialist verdicts |
+| Product | PD | Acceptance and behavior proposals | No source edits or architecture authority |
+| Architecture | AR | Architecture constraints and ADR proposals | Use adr-context; no source edits |
+| Implementation | IM | All scoped source/docs/config changes and corrections | Sole writer/committer; cannot approve itself |
+| QA | QA | Independent behavior at exact SHA in isolated detached clone | No source/ref/commit/push changes; final guard before cleanup |
+| Reviewer | RV | Independent scope, correctness and risk verdict at same SHA | No source edits; independent of IM and QA |
+| Knowledge Steward | KS | Canonical knowledge proposals | IM applies edits; preserve PD/AR decisions |
 
-Coordinator is the human-facing owner of cell progress, activation, supervision, recovery, and consolidated outcome reporting. When a persistent home task delegates an issue Coordinator, progress and outcomes stay within that coordination chain. Human authorization for the cell workflow covers scoped internal peer coordination, subject to host/tool permission requirements; the plugin grants no permissions and cannot bypass host restrictions. Human product decisions, credentials/permissions, acceptance, and merge authority remain explicit, and voluntary inspection of specialist tasks is welcome.
+Subagents inherit parent sandbox/approvals; these are behavioral limits, not per-agent sandbox enforcement. Parent needs adequate workspace-write capabilities for IM/QA. Custom agent files deliberately omit ineffective sandbox_mode overrides. Supported tool reductions may be used where available; report unavailable enforcement truthfully. The plugin grants no permissions; host/tool permission requirements and native denials remain binding.
 
-IM/QA/RV use native task messaging and structured handoffs for readiness, findings, corrections, and completion; they must not ask the human to copy prompts, open peer tasks, or manually continue routine delivery. Escalate unavailable task control, unresolved delivery uncertainty, or missing authorization to Coordinator. Coordinator exhausts safe recovery within existing authority and host/tool permissions, then presents one actionable human blocker only when necessary through the coordination chain. A GitHub-reconstructible copy/paste fallback is a last-resort recovery artifact, never the normal user workflow.
+Use the native runtime for role-bound assignments/results, explicit model/effort/rationale, standing owner authorization in initial CO/IM instructions, correction maps and exact-SHA evidence. The matrix in config is authoritative; no model override without the required rationale. Native task messaging uses concise in-tree calls, not legacy fan-out. Independent QA/review are required; CO schedules readiness but cannot fabricate verdicts. Same IM fixes findings. Native agent identity is observed by the trusted host adapter, not asserted by a payload role string.
 
-The role codes are authoritative for prospective session titles. Unknown codes are invalid.
-
-Model routing is also authoritative: Coordinator uses 6-Astra/Medium; Product and Architecture use 6.1-Sol/Medium, with 6-Astra/High for difficult work. Implementation uses 6-Luna/Low for routine work, 6.1-Sol for nontrivial work, and 6-Astra/High for difficult work. QA and Reviewer use 6.1-Sol/Medium, with 6-Astra/High for difficult work. Knowledge Steward uses 6-Luna/Low, with 6.1-Sol/Medium for decision-heavy work and 6-Astra/High for difficult work. Every handoff carries explicit Target model, Effort, and one-sentence Rationale. High effort requires a risk rationale; corrections return to the same Implementation task. Only the 6-Astra route is allowed for Coordinator.
-
-Roles that write or make material decisions run only in issue-backed user-visible tasks. An agent file is a reusable contract, not permission to invoke that role as an ephemeral subagent. Ephemeral subagents are restricted to bounded read-only information gathering.
-
-All roles use `.pleiad/handoff.schema.json`. Handoff and ADR algorithms are centralized in the schema, `docs/pleiad/coordination.md`, and `adr-context`, not repeated in individual role files.
+Coordinator owns human progress and recovery through the coordination chain, including a persistent home task when used. Scoped internal peer coordination follows human cell authorization; no human relaying. Escalate one actionable human blocker only after safe recovery. Copy/paste is a last-resort recovery artifact; voluntary inspection and human acceptance/merge remain explicit. See [coordination](coordination.md) for complete lifecycle and recovery rules, [legacy coordination](legacy-coordination.md) only for explicit top-level opt-in.

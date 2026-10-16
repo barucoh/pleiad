@@ -1,85 +1,76 @@
-<!-- pleiad:managed coordination/v1 -->
-# Coordination and delivery resilience
+<!-- pleiad:managed coordination/v2 -->
+# Native Coordinator delivery cell
 
-## Durable authority and delivery cell
-
-GitHub issues, pull requests, commits, checks, review comments, ADRs, and committed canonical documentation are authoritative. Native task messages are wake-up optimizations only; machine-local task handles are never committed. Canonical topology is one issue = one delivery cell = one writable Implementation worktree/branch = one PR. The cell has distinct issue-backed user-visible Coordinator, Implementation, QA, and Reviewer tasks; only Implementation writes source or commits, while QA and Reviewer remain independent and non-authoritative. Ephemeral subagents are bounded read-only research only.
-
-file-producing, durable-artifact-producing, decision-heavy, release, high-importance, and risk-bearing work stays inside this issue-scoped delivery cell; it does not create a second PR for the same issue.
-
-Coordinator establishes authoritative issue scope, creates or binds the dedicated Implementation, QA, and Reviewer tasks, provides their local handles, and supervises the delivery cell. Coordinator watches, reconciles GitHub, and handles `BLOCKED`, escalation, or `DELIVERY_UNKNOWN`; it is not the routine message relay or specialist decision owner.
+Default: one authoritative issue, one durable Coordinator (CO), one writable Implementation (IM) worktree/branch, one PR. CO executes native IM, independent QA, independent Reviewer (RV) and necessary PD Product, AR Architecture, KS Knowledge Steward or bounded read-only research agents. Standalone CO works without Captain. Captain multi-cell admission is a separate follow-up; do not create an integration branch.
 
 ```mermaid
-flowchart LR
-  CO["CO Coordinator: scope, cell binding, watchdog"]
-  PD["PD Product: value and acceptance"]
-  AR["AR Architecture: constraints and ADRs"]
-  IM["IM Implementation: PR and exact SHA"]
-  QA["QA: independent acceptance verification"]
-  RV["RV Reviewer: delivery-cell verification lead"]
-  KS["KS Knowledge Steward: canonical knowledge"]
-  GH[("GitHub durable authority")]
-  CO -->|Activate dedicated QA/RV task for this issue| IM & QA & RV
-  PD --> CO
-  AR --> CO
-  IM -->|IMPLEMENTATION_READY| QA & RV
-  QA -->|QA_PASSED or QA_CHANGES_REQUESTED| RV & IM
-  RV -->|CHANGES_REQUESTED| IM
-  RV -->|DELIVERY_CELL_COMPLETED| CO
-  PD & AR & IM & QA & RV & KS --> GH
-  GH -.reconcile uncertain transport.-> CO
+flowchart TD
+    Owner --> CO[Durable issue Coordinator]
+    CO --> IM[Sole source writer]
+    CO --> QA[Independent isolated QA clone]
+    CO --> RV[Independent Reviewer]
+    IM --> PR[One issue branch and PR]
+    QA --> Evidence[Role and exact SHA evidence]
+    RV --> Evidence
+    Evidence --> CO
+    CO --> Local[Local review ready]
+    Local --> Owner
 ```
-
-## Human-facing ownership and recovery
-
-Coordinator is the human-facing owner of cell progress, activation, supervision, recovery, and consolidated outcome reporting. When a persistent home task delegates an issue Coordinator, progress and outcomes stay within that coordination chain. Human authorization for the cell workflow covers scoped internal peer coordination, subject to host/tool permission requirements; the plugin grants no permissions and cannot bypass host restrictions. Human product decisions, credentials/permissions, acceptance, and merge authority remain explicit, and voluntary inspection of specialist tasks is welcome.
-
-IM/QA/RV use native task messaging and structured handoffs for readiness, findings, corrections, and completion; they must not ask the human to copy prompts, open peer tasks, or manually continue routine delivery. Escalate unavailable task control, unresolved delivery uncertainty, or missing authorization to Coordinator. Coordinator exhausts safe recovery within existing authority and host/tool permissions, then presents one actionable human blocker only when necessary through the coordination chain. A GitHub-reconstructible copy/paste fallback is a last-resort recovery artifact, never the normal user workflow.
-
-Direct peer lifecycle routes and independent QA/review remain intact; Coordinator must not impersonate specialists or relay every peer event.
-
-## Native delivery-cell lifecycle
-
-Implementation sends `IMPLEMENTATION_READY` with exact PR/SHA and passed local/CI evidence directly to QA and Reviewer. QA sends `QA_PASSED` or `QA_CHANGES_REQUESTED` directly to Reviewer and Implementation. Reviewer leads verification: it consolidates findings, sends `CHANGES_REQUESTED` directly to the same Implementation task, receives the corrected readiness handoff, and reactivates QA when changed acceptance behavior requires recheck. When QA has passed and Reviewer has no actionable findings at the same exact PR/SHA, Reviewer sends `DELIVERY_CELL_COMPLETED` / `HUMAN_MERGE_READY` directly to Coordinator. Human approval and merge remain explicit.
 
 ```mermaid
 stateDiagram-v2
-  [*] --> IMPLEMENTATION_ACTIVE
-  IMPLEMENTATION_ACTIVE --> IMPLEMENTATION_READY: IM -> QA/RV
-  IMPLEMENTATION_READY --> QA_PASSED: QA -> RV/IM
-  IMPLEMENTATION_READY --> QA_CHANGES_REQUESTED: QA -> IM/RV
-  QA_PASSED --> REVIEW_ACTIVE: RV verification
-  REVIEW_ACTIVE --> CHANGES_REQUESTED: RV -> IM
-  QA_CHANGES_REQUESTED --> CORRECTION_ACTIVE: IM correction
-  CHANGES_REQUESTED --> CORRECTION_ACTIVE: IM correction
-  CORRECTION_ACTIVE --> IMPLEMENTATION_READY: IM -> QA/RV, new SHA
-  REVIEW_ACTIVE --> REVIEW_ACCEPTED: RV, QA passed
-  REVIEW_ACCEPTED --> HUMAN_MERGE_READY: RV -> CO DELIVERY_CELL_COMPLETED
-  IMPLEMENTATION_ACTIVE --> BLOCKED
-  IMPLEMENTATION_READY --> BLOCKED
-  QA_PASSED --> BLOCKED
-  REVIEW_ACTIVE --> BLOCKED
-  CORRECTION_ACTIVE --> BLOCKED
+    [*] --> IMPLEMENTATION_ACTIVE
+    IMPLEMENTATION_ACTIVE --> IMPLEMENTATION_READY: IM result
+    IMPLEMENTATION_READY --> CHANGES_REQUESTED: QA or RV findings
+    CHANGES_REQUESTED --> CORRECTION_ACTIVE: same IM and new generation
+    CORRECTION_ACTIVE --> IMPLEMENTATION_READY: fixes and verification map
+    IMPLEMENTATION_READY --> LOCAL_REVIEW_READY: current QA plus RV plus CI
+    LOCAL_REVIEW_READY --> IMPLEMENTATION_ACTIVE: changed head
 ```
 
-Every peer lifecycle event has one UUID and each fan-out wake-up has its own child delivery UUID, parent link, attempt count, delivery state, reconciliation result, and retry state. `DELIVERY_UNKNOWN` is a per-recipient transport overlay, never a lifecycle state: reconciling one child cannot replay the parent state change or affect a sibling. An unknown peer wake-up recovers from durable GitHub evidence without duplicating a transition. Delivered/applied child deliveries are terminal and immutable. Any active IM, QA, or RV role may send `BLOCKED` or `ESCALATED` directly to CO with exact evidence and fallback; CO cannot relay routine peer events.
+## Authority and capabilities
 
-## Glossary
+Initial CO instructions and every IM assignment carry verified standing owner commit/push/PR/CI/QA/review authorization. Use the mechanical `assign --instructions` output. Routine publication does not wait for a second human approval hold. Merge after local review remains the owner's explicit decision. Deployment, DNS, public exposure, secrets disclosure and unrelated publication require separate scope. A prior platform denial is not reopened by quoted authorization; preserve it until supported native resolution. The plugin grants no permissions and cannot bypass host/tool permission requirements.
 
-An **exact commit SHA** is the immutable 40-character Git commit identifier that must match the PR, implementation, QA, review, CI, and terminal evidence. **Machine-local task activation** means binding a dedicated visible task handle on the current host; the handle is transport-only and is never committed.
+Subagents inherit the parent's sandbox/approvals. Custom role files are behavioral restrictions, not separate read-only sandboxes. The parent needs adequate IM/QA capabilities while CO remains a behavioral non-writer. Only IM edits project files/commits, including specialist documentation proposals. QA needs a separate detached clone, canonical IM ref at assigned SHA, distinct Git common-dir, declared output paths and before/after checks through `scripts/qa_workspace.py`. Host control provisions/removes the clone. Preserve it through QA's final guard and owner certificate; unsupported isolation is a blocker, never a claimed pass.
 
-## Native primitives decision
+## Native execution
 
-Native Codex dedicated user-visible tasks plus task messaging and bounded waits are the primary runtime mechanism. In an adopted repository, the managed synchronous PreToolUse hook at .codex/hooks.json is an additional local guardrail for the observed Desktop codex_app__create_thread and codex_app__send_message_to_thread paths: it uses canonical handoff validation to deny invalid envelopes before a supported call. It is not a durable cross-task event bus, must be trusted after each project-hook hash change through /hooks, and specialized paths can opt out; see [native task-boundary hooks](hooks.md) for exact enablement and coverage. The Codex SDK can start, continue, and resume local threads, but a separate programmatic orchestrator would add runtime code, dependencies, and machine-local task management; it is not an MVP/plugin dependency. Agents SDK or MCP orchestration is a future standalone-service extension only.
+1. Read the issue, AGENTS.md, config and role contracts. Retrieve only relevant ADR context with adr-context.
+2. Initialize a checkpoint with `scripts/native_cell.py`. Create CO/IM instructions mechanically; pass explicit model, effort and rationale. The repository routing matrix applies to file-producing, durable-artifact-producing, decision-heavy, release, high-importance and risk-bearing work. No permission-policy changes are required.
+3. CO uses native spawn, follow-up, wait and returned results. Bind the host-observed agent source to each assignment using `bind`. Do not substitute a role label for a native source. One source cannot serve IM and QA/RV, QA and RV, or CO and a specialist. Same IM handles corrections.
+4. IM returns readiness with exact SHA, one PR and passing gates. Set observed PR identity first. CO records the result using `receive` with native return metadata, then activates QA and RV. They can run concurrently against the same head; local readiness requires both passes and current CI.
+5. Findings return to the same IM. A correction assignment advances the generation even if SHA stays unchanged. IM supplies one finding-to-fix evidence entry per pending finding. New readiness clears the findings only when the map is complete. Any observed head change invalidates earlier QA/RV and CI; fresh assignments/results are required.
+6. CO schedules LOCAL_REVIEW_READY only after current role-authored evidence and CI pass. DELIVERY_CELL_COMPLETED means this local-review-ready outcome, never automatic merge. Do not author specialist verdicts as CO.
 
-Official references: [Hooks](https://learn.chatgpt.com/docs/hooks), [Codex SDK](https://learn.chatgpt.com/docs/codex-sdk), and [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
+Native task messaging is transport only. Do not wrap ordinary in-tree calls in legacy sender tuples or fan-out envelopes. Persist checkpoints at meaningful boundaries (assignment, readiness, findings, correction, accepted exact-head evidence, denial, recovery and local-review readiness). GitHub issue/PR/comments plus committed canonical artifacts hold durable evidence. Absolute workspace, agent/task IDs, process and device handles stay local under the Git common directory; never commit or publish them.
 
-## Session titles and routing
+## Mechanical library and CLI
 
-Name every new user-visible task `#<issue number> <role code> - <issue title>` using `CO`, `PD`, `AR`, `IM`, `QA`, `RV`, or `KS`; reject unknown codes. The maximum full title is 36 Unicode characters; truncate only the issue-title segment and end it with one `…`.
+```text
+python scripts/native_cell.py --checkpoint <private-or-portable-checkpoint> init --repository owner/repo --issue-number 1 --branch codex/1-change --sha <40-hex-sha>
+python scripts/native_cell.py --checkpoint <checkpoint> assign --role coordinator --objective "Deliver issue 1" --model gpt-6-astra --effort Medium --rationale "Coordinate independent issue work." --instructions
+python scripts/native_cell.py --checkpoint <checkpoint> assign --role implementation --objective "Implement issue 1" --model gpt-6-luna --effort Low --rationale "Routine scoped change." --instructions
+python scripts/native_cell.py --checkpoint <checkpoint> bind --assignment-id <uuid> --source <observed-native-agent> --coordinator <observed-native-coordinator>
+python scripts/native_cell.py --checkpoint <checkpoint> pr --url https://github.com/owner/repo/pull/1
+python scripts/native_cell.py --checkpoint <checkpoint> result --assignment-id <uuid> --sha <40-hex-sha> --status ready --evidence https://github.com/owner/repo/pull/1 --checks <checks.json>
+python scripts/native_cell.py --checkpoint <checkpoint> receive --source <observed-native-agent> --result <result.json>
+python scripts/native_cell.py --checkpoint <checkpoint> ci --status passed
+python scripts/native_cell.py --checkpoint <checkpoint> ready
+```
 
-Every durable handoff carries explicit target model, effort, and one-sentence rationale. Coordinator uses 6-Astra/Medium; Product, Architecture, QA, and Reviewer use 6.1-Sol/Medium by default; routine Implementation and Knowledge Steward use 6-Luna/Low. Nontrivial Implementation uses 6.1-Sol, difficult tasks may use 6-Astra/High with a risk rationale, and corrections return to the same Implementation task. Handoff terminal states are `completed`, `changes_requested`, and `blocked`; transport may additionally report `DELIVERY_UNKNOWN`.
+`result` only constructs a specialist record. It never admits a verdict. QA uses `--final-guard`; `--findings` and `--fixes` read concise typed JSON arrays. `checks` is an array of name/status objects. The library additionally exposes `delivery`, `reconcile`, `denial`, `resolve_denial`, `recover_agent`, and `rehydrate` for host adapters. No native transport is performed by the library. Keep one serialized writer of the checkpoint; concurrent file mutation is unsupported.
 
-Before every issue-backed task creation and every required cross-task send, the sending role calls the repository-native `dispatch_issue_task` or `send_cross_task_handoff` helper from `scripts/coordination_protocol.py`. Each helper validates the complete versioned envelope with `validate_handoff` and returns actionable errors without invoking the transport callback when invalid. This is the sole pre-dispatch authority; native task messaging remains transport only.
+The trust boundary is the native host adapter: it obtains `source` from observed native return metadata and binds it to the assignment, role, generation and head. `receive` rejects a CO source, reused independent source, stale generation, wrong role or replay. Local receipt hashes detect altered imported results. Shared parent permissions do not provide cryptographic agent authentication: an operator capable of editing local state can falsify it. CO must reconcile role-authored native/GitHub evidence; neither a CLI role flag nor a different name proves independence. The CLI is a mechanical adapter for a trusted caller, not an identity oracle.
 
-QA verification uses a host-provisioned isolated disposable clone derived from the exact implementation commit, never a shared Git worktree. It starts detached at the exact SHA and carries a local canonical Implementation ref at that SHA. Behavioral tools may create caches/build/test outputs, but QA must not mutate source, commit, push, alter local refs, or alter the Implementation ref. The repository QA check records source status/diff, detached HEAD, local ref map, Implementation ref, and Git common-directory isolation before and after; the host/task-control still provisions and removes the clone. QA reports blocked on drift, unavailable cleanup, or an unproven clone boundary.
+## Recovery and transport uncertainty
+
+Run `resume --observed-sha <head> --observed-pr <url> --observed-issue-url <issue-url> --observed-branch <branch>` only after fresh GitHub/native observations. Validate the complete checkpoint, sealed immutable cell identity, all assignment contexts, pending source bindings and local result receipts before reuse. If the head changed, record `head` and repeat gates. Missing bindings/receipts require native-history and GitHub reconciliation, not blind replacement. The host-only `recover_agent` path permits a new execution source only after proven stopped/lost native execution, every pending result observed absent, no unknown recipients or unresolved denial, and durable recovery evidence. It preserves logical IM ownership and historical applied results; normal corrections reuse the same IM. Unsupported proof means blocked recovery. No human prompt copying, peer activation or routine manual continuation.
+
+Applied lifecycle event IDs and per-recipient delivery UUIDs are separate. Unknown delivery is an overlay: reconcile the exact recipient as absent or applied. This cannot reopen or replay its applied parent event. A retry, if absent, reuses the same assignment/event context and a new recipient attempt; never reapply lifecycle state. Local-review readiness is idempotent; a final outcome notification may have its own unknown recipient overlay without replaying or erasing the verified lifecycle outcome. Only recorded absent recipients can be retried; applied recipients are idempotent. Native denial records remain unresolved through timeouts or absence; only supported resolution with durable evidence clears them.
+
+Coordinator owns supervision and recovery through the coordination chain, including a persistent home task when present. Human authorization covers scoped internal peer coordination, subject to native controls. Escalate one actionable human blocker only after safe recovery is exhausted. Copy/paste is a last-resort recovery artifact. Human decisions/acceptance/merge and voluntary inspection remain explicit; preserve independent QA/review.
+
+## Explicit legacy compatibility
+
+Use `execution_mode: legacy-top-level` only for existing cells or explicit isolation/ownership/platform exceptions. Keep old checkpoints and handoff schema unchanged; `load_checkpoint(..., mode="legacy-top-level")` returns them unchanged to the legacy adapter. Native load rejects them with an actionable opt-in message. Adoption/upgrade changes defaults for new cells, never running state. Follow [legacy coordination](legacy-coordination.md) and its retained `dispatch_issue_task` / `send_cross_task_handoff`, validation, watchdog, child-recipient and no-replay behavior. Top-level hook guard remains scoped to those calls; native spawn is not a legacy handoff boundary.

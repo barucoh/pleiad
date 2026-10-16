@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 import sys
@@ -29,7 +30,7 @@ BLOCK_START = "<!-- pleiad:start -->"
 BLOCK_END = "<!-- pleiad:end -->"
 LEGACY_BLOCK_START = "<!-- agentic-sdlc:start -->"
 LEGACY_BLOCK_END = "<!-- agentic-sdlc:end -->"
-MANIFEST_SCHEMA_VERSION = 2
+MANIFEST_SCHEMA_VERSION = 3
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 MANAGED_PATHS = tuple(
@@ -38,6 +39,7 @@ MANAGED_PATHS = tuple(
         ".pleiad/config.yaml",
         ".pleiad/handoff.schema.json",
         ".pleiad/handoff-template.json",
+        ".pleiad/native-cell.schema.json",
         ".codex/hooks.json",
         ".codex/agents/architecture.toml",
         ".codex/agents/coordinator.toml",
@@ -47,17 +49,23 @@ MANAGED_PATHS = tuple(
         ".codex/agents/qa.toml",
         ".codex/agents/reviewer.toml",
         "scripts/coordination_protocol.py",
+        "scripts/native_cell.py",
         "scripts/pretool_handoff_guard.py",
         "scripts/validate_handoff.py",
         "scripts/validate_hooks.py",
         "scripts/qa_workspace.py",
         "docs/pleiad/coordination.md",
+        "docs/pleiad/legacy-coordination.md",
         "docs/pleiad/hooks.md",
         "docs/pleiad/role-contracts.md",
     )
 )
+MANIFEST_V2_MANAGED_PATHS = frozenset(MANAGED_PATHS) - {
+    Path(".pleiad/native-cell.schema.json"), Path("scripts/native_cell.py"),
+    Path("docs/pleiad/legacy-coordination.md"),
+}
 MANIFEST_V1_MANAGED_PATHS = frozenset(
-    frozenset(MANAGED_PATHS)
+    MANIFEST_V2_MANAGED_PATHS
     - {
         Path(".codex/hooks.json"),
         Path("scripts/pretool_handoff_guard.py"),
@@ -143,7 +151,7 @@ def legacy_manifest_errors(target: Path, installed: dict) -> list[str]:
     if installed.get("schema_version") != 2 or installed.get("plugin_version") != "0.3.0":
         errors.append("legacy managed-state must be Agentic SDLC v0.3.0 schema 2")
     files = installed.get("files")
-    expected = {legacy_path(path).as_posix() for path in MANAGED_PATHS}
+    expected = {legacy_path(path).as_posix() for path in MANIFEST_V2_MANAGED_PATHS}
     if not isinstance(files, dict) or set(files) != expected:
         errors.append("legacy managed-state files do not match the v0.3.0 managed path set")
     elif any(not isinstance(value, str) or SHA256_PATTERN.fullmatch(value) is None for value in files.values()):
@@ -212,7 +220,7 @@ def manifest_validation_errors(target: Path, installed: dict, project_name: str)
     if set(installed) != expected_keys:
         errors.append("managed-state manifest fields differ from the authority schema")
     is_v1 = installed.get("schema_version") == 1
-    if installed.get("schema_version") not in {1, MANIFEST_SCHEMA_VERSION}:
+    if installed.get("schema_version") not in {1, 2, MANIFEST_SCHEMA_VERSION}:
         errors.append(f"managed-state schema_version must be {MANIFEST_SCHEMA_VERSION}")
     if not supported_installed_version(installed.get("plugin_version")):
         errors.append(f"managed-state plugin_version is not a supported upgrade source for {plugin_version()}")
@@ -221,7 +229,8 @@ def manifest_validation_errors(target: Path, installed: dict, project_name: str)
 
     files = installed.get("files")
     expected_paths = {relative.as_posix() for relative in MANAGED_PATHS}
-    recorded_paths = {relative.as_posix() for relative in (MANIFEST_V1_MANAGED_PATHS if is_v1 else MANAGED_PATHS)}
+    prior_paths = MANIFEST_V1_MANAGED_PATHS if is_v1 else MANIFEST_V2_MANAGED_PATHS
+    recorded_paths = {relative.as_posix() for relative in (MANAGED_PATHS if installed.get("schema_version") == MANIFEST_SCHEMA_VERSION else prior_paths)}
     if not isinstance(files, dict):
         errors.append("managed-state files must be an object")
     else:
@@ -309,7 +318,7 @@ def template_validation_errors(project_name: str) -> list[str]:
         try:
             if relative.suffix == ".toml":
                 value = tomllib.loads(content)
-                for field in ("name", "description", "developer_instructions", "sandbox_mode"):
+                for field in ("name", "description", "developer_instructions"):
                     if not value.get(field):
                         errors.append(f"{relative.as_posix()} lacks {field}")
             elif relative.suffix == ".json":
@@ -320,7 +329,13 @@ def template_validation_errors(project_name: str) -> list[str]:
     if block.count(BLOCK_START) != 1 or block.count(BLOCK_END) != 1:
         errors.append("AGENTS.md template must contain exactly one managed block")
     config = template_text(Path(".pleiad/config.yaml"), project_name)
-    errors.extend(f"config: {error}" for error in validate_session_title_config(config))
+    # A source upgrade can change the installed runtime's config contract. Check
+    # the candidate config with its bundled runtime before replacing installed files.
+    spec = importlib.util.spec_from_file_location("_pleiad_candidate_protocol", TEMPLATES / "scripts/coordination_protocol.py")
+    candidate = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = candidate
+    spec.loader.exec_module(candidate)
+    errors.extend(f"config: {error}" for error in candidate.validate_session_title_config(config))
     for role, code in ROLE_CODES.items():
         try:
             format_session_title(5, code, f"Validate {role} title")
@@ -392,7 +407,7 @@ def plan(target: Path, project_name: str) -> tuple[list[Action], dict[Path, str]
             if legacy.get("project_name") != project_name:
                 actions.append(Action("conflict", LEGACY_MANIFEST_PATH, "legacy project_name conflicts with the requested project name"))
             if not [action for action in actions if action.classification == "conflict"]:
-                for path in MANAGED_PATHS:
+                for path in MANIFEST_V2_MANAGED_PATHS:
                     old_path = legacy_path(path)
                     if old_path != path:
                         actions.append(Action("delete", old_path, "verified Agentic SDLC v0.3.0 managed path"))
