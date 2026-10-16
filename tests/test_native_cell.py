@@ -47,7 +47,7 @@ class NativeCellTests(unittest.TestCase):
         self.receive(self.assign("qa"), "passed", final_guard=True)
         self.receive(self.assign("reviewer"), "passed")
         self.cell["ci"] = "passed"
-        native.local_review_ready(self.cell)
+        native.local_review_ready(self.cell, self.local)
 
     def test_complete_native_correction_loop_and_exact_head_recheck(self):
         self.ready_im()
@@ -68,7 +68,7 @@ class NativeCellTests(unittest.TestCase):
         native.changed_head(self.cell, "c" * 40)
         self.assertEqual(self.cell["ci"], "pending")
         with self.assertRaises(native.CellError):
-            native.local_review_ready(self.cell)
+            native.local_review_ready(self.cell, self.local)
         self.ready_im()
         self.pass_all()
         self.assertEqual(self.cell["generation"], 2)
@@ -119,7 +119,7 @@ class NativeCellTests(unittest.TestCase):
         self.receive(im, "ready", fixes=[{"finding_id": "q1", "evidence": EVIDENCE}])
         self.cell["ci"] = "passed"
         with self.assertRaises(native.CellError):
-            native.local_review_ready(self.cell)
+            native.local_review_ready(self.cell, self.local)
 
     def test_stale_result_replay_and_missing_final_guard_are_rejected(self):
         self.ready_im()
@@ -169,7 +169,7 @@ class NativeCellTests(unittest.TestCase):
         self.receive(qa, "passed", final_guard=True)
         self.receive(rv, "passed")
         self.cell["ci"] = "passed"
-        native.local_review_ready(self.cell)
+        native.local_review_ready(self.cell, self.local)
         with self.assertRaises(native.CellError):
             native.reconcile(self.cell, r["id"], "applied")
         altered = copy.deepcopy(self.cell)
@@ -191,9 +191,9 @@ class NativeCellTests(unittest.TestCase):
         self.receive(qa, "passed", final_guard=True)
         self.receive(self.assign("reviewer"), "passed")
         self.cell["ci"] = "passed"
-        native.local_review_ready(self.cell)
+        native.local_review_ready(self.cell, self.local)
         before = copy.deepcopy(self.cell)
-        native.local_review_ready(self.cell)
+        native.local_review_ready(self.cell, self.local)
         self.assertEqual(self.cell, before)
         terminal = self.cell["events"][-1]
         native.delivery(self.cell, terminal["id"], qa["id"])
@@ -217,6 +217,38 @@ class NativeCellTests(unittest.TestCase):
         missing["bindings"] = {}
         with self.assertRaisesRegex(native.CellError, "pending specialist"):
             native.rehydrate(self.cell, missing, **observations)
+
+    def test_rv4_first_pr_is_sealed_and_modified_checkpoint_cannot_reuse_verification(self):
+        # IM can be assigned before publication; the first nonempty PR seals once.
+        self.cell["pr_url"] = ""
+        im = self.assign("implementation")
+        self.assertEqual(self.local["pr_url"], "")
+        self.cell["pr_url"] = PR
+        self.receive(im, "ready")
+        self.assertEqual(self.local["pr_url"], PR)
+        self.pass_all()
+        changed = copy.deepcopy(self.cell)
+        changed["pr_url"] = "https://github.com/o/r/pull/999"
+        observations = dict(observed_sha=SHA, observed_pr=changed["pr_url"],
+            observed_issue_url=changed["issue_url"], observed_branch=changed["branch"])
+        with self.assertRaisesRegex(native.CellError, "sealed PR"):
+            native.rehydrate(changed, self.local, **observations)
+        with self.assertRaisesRegex(native.CellError, "sealed PR"):
+            native.local_review_ready(changed, self.local)
+        # Even replacing the local PR label cannot reuse the original result receipts.
+        altered_local = copy.deepcopy(self.local)
+        altered_local["pr_url"] = changed["pr_url"]
+        with self.assertRaisesRegex(native.CellError, "receipt"):
+            native.rehydrate(changed, altered_local, **observations)
+        with self.assertRaisesRegex(native.CellError, "receipt"):
+            native.local_review_ready(changed, altered_local)
+        native.changed_head(changed, NEXT)
+        new_im = native.assignment(changed, "implementation", "Recheck.", "gpt-6-luna", "Low", "Scoped recheck.")
+        with self.assertRaisesRegex(native.CellError, "sealed PR"):
+            native.bind(changed, self.local, new_im["id"], "native-implementation")
+        pending = native.result(im, SHA, "ready", [EVIDENCE], checks=CHECKS)
+        with self.assertRaisesRegex(native.CellError, "sealed PR"):
+            native.receive(changed, self.local, "native-implementation", pending)
 
     def test_proven_lost_agent_recovery_requires_absent_results_and_keeps_applied_work(self):
         im = self.assign("implementation")

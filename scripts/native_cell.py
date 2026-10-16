@@ -55,6 +55,17 @@ def identity(cell):
     return {key: cell[key] for key in ("schema_version", "cell_id", "repository", "issue_number", "issue_url", "branch")}
 
 
+def verify_pr_binding(cell, local):
+    """First observed nonempty PR is immutable; blank setup may be filled once."""
+    sealed = local.get("pr_url", "")
+    require(not sealed or sealed == cell["pr_url"], "sealed PR identity changed; reconcile without reusing evidence")
+    require(sealed or not any(r["status"] in {"ready", "passed"} for r in cell["results"]), "verification PR binding missing; reconcile before reuse")
+
+
+def receipt_digest(cell, record):
+    return digest({"identity": identity(cell), "pr_url": cell["pr_url"] if record["status"] in {"ready", "passed"} else "", "record": record})
+
+
 def _portable(value):
     """Reject local handles in records intended for GitHub or version control."""
     if isinstance(value, str):
@@ -182,6 +193,7 @@ def initial_instructions(cell, item):
 def bind(cell, local, assignment_id, source_agent):
     """Record a host-observed spawn result, never a role label supplied by the agent."""
     validate(cell)
+    verify_pr_binding(cell, local)
     a = next((a for a in cell["assignments"] if a["id"] == assignment_id), None)
     require(a is not None and source_agent, "assignment and observed native agent source required")
     require(local.get("coordinator"), "observed Coordinator identity required")
@@ -199,6 +211,7 @@ def bind(cell, local, assignment_id, source_agent):
             require(b["source"] == source_agent or b["source"] in retired, "corrections return to the same IM agent; recover it before replacement")
     local["bindings"][assignment_id] = {"source": source_agent, "role": a["role"]}
     local["identity"] = digest(identity(cell))
+    local["pr_url"] = cell["pr_url"]
     local["contexts"] = {prior["id"]: digest(prior) for prior in cell["assignments"]}
 
 
@@ -212,6 +225,7 @@ def result(item, sha, status, evidence, *, findings=(), fixes=(), checks=(), fin
 def receive(cell, local, source_agent, record):
     """Host adapter: source_agent MUST come from native control return metadata."""
     validate(cell)
+    verify_pr_binding(cell, local)
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     errors = _validate_schema(record, schema["properties"]["results"]["items"], schema, "result")
     require(not errors, "; ".join(errors[:4]))
@@ -245,7 +259,8 @@ def receive(cell, local, source_agent, record):
     event(candidate, record["status"], record["id"])
     validate(candidate)
     cell.update(candidate)
-    local.setdefault("receipts", {})[record["id"]] = digest(record)
+    local["pr_url"] = cell["pr_url"]
+    local.setdefault("receipts", {})[record["id"]] = receipt_digest(cell, record)
 
 
 def rehydrate(cell, local, *, observed_sha, observed_pr, observed_issue_url, observed_branch):
@@ -255,6 +270,7 @@ def rehydrate(cell, local, *, observed_sha, observed_pr, observed_issue_url, obs
     bindings/receipts from observed native history and role-authored GitHub evidence.
     """
     validate(cell)
+    verify_pr_binding(cell, local)
     require(cell["sha"] == observed_sha and cell["pr_url"] == observed_pr, "reconcile changed GitHub head/PR before reuse")
     require(cell["issue_url"] == observed_issue_url and cell["branch"] == observed_branch, "reconcile observed issue/branch before reuse")
     require(local.get("coordinator") and local.get("identity") == digest(identity(cell)), "immutable cell identity missing or altered; reconcile")
@@ -264,8 +280,9 @@ def rehydrate(cell, local, *, observed_sha, observed_pr, observed_issue_url, obs
             binding = local.get("bindings", {}).get(a["id"], {})
             require(binding.get("role") == a["role"] and binding.get("source") and binding["source"] != local["coordinator"], "pending specialist source missing; reconcile before replacement")
     for r in cell["results"]:
-        require(local.get("receipts", {}).get(r["id"]) == digest(r), "result receipt missing or altered; reconcile native/GitHub evidence")
+        require(local.get("receipts", {}).get(r["id"]) == receipt_digest(cell, r), "result receipt missing or altered; reconcile native/GitHub evidence")
         require(local.get("bindings", {}).get(r["assignment_id"], {}).get("role") == r["role"], "specialist identity missing; reconcile before resume")
+    local["pr_url"] = cell["pr_url"]
     return cell
 
 
@@ -276,6 +293,7 @@ def recover_agent(cell, local, old_source, new_source, *, observed_status, pendi
     recovery changes execution handles, never issue ownership or applied results.
     """
     validate(cell)
+    verify_pr_binding(cell, local)
     require(local.get("identity") == digest(identity(cell)), "reconcile cell identity before recovery")
     require(observed_status in {"stopped", "lost-confirmed"}, "prove old native execution stopped/lost before replacement")
     require(new_source and new_source != old_source and new_source != local.get("coordinator"), "new independent native source required")
@@ -306,7 +324,9 @@ def changed_head(cell, sha):
     validate(cell)
 
 
-def local_review_ready(cell):
+def local_review_ready(cell, local):
+    rehydrate(cell, local, observed_sha=cell["sha"], observed_pr=cell["pr_url"], observed_issue_url=cell["issue_url"], observed_branch=cell["branch"])
+    require(local.get("pr_url") == cell["pr_url"] and cell["pr_url"], "sealed verification PR required for readiness")
     candidate = copy.deepcopy(cell)
     candidate["state"] = "LOCAL_REVIEW_READY"
     validate(candidate)
@@ -459,7 +479,9 @@ def main(argv=None):
             elif args.command == "ci":
                 cell["ci"] = args.status
             elif args.command == "ready":
-                local_review_ready(cell)
+                path = local_path(Path.cwd(), cell["cell_id"])
+                require(path.exists(), "local specialist/PR receipts required for readiness")
+                local_review_ready(cell, json.loads(path.read_text(encoding="utf-8")))
         save_checkpoint(cell, args.checkpoint)
         print(output if isinstance(output, str) else json.dumps(output or {"cell_id": cell["cell_id"], "state": cell["state"], "sha": cell["sha"]}, indent=2))
         return 0
