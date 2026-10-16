@@ -379,8 +379,9 @@ def is_safe_managed_update(target: Path, relative: Path, installed: dict, legacy
         return True
     if relative == Path(".pleiad/config.yaml"):
         return recognized_legacy_config(path.read_text(encoding="utf-8"))
-    first_line = path.read_text(encoding="utf-8").splitlines()[0] if path.stat().st_size else ""
-    return first_line.startswith("# pleiad:managed") or first_line.startswith("<!-- pleiad:managed")
+    # A marker expresses intent, not ownership proof. Unknown or customized
+    # marked files without a matching ledger must never be overwritten.
+    return False
 
 
 def desired_agents_text() -> str:

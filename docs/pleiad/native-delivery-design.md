@@ -1,6 +1,6 @@
 # Captain and native delivery cells — candidate design
 
-Authoritative scope: [issue #26](https://github.com/barucoh/pleiad/issues/26). This intermediate review slice stays at plugin 0.1.5. The ADR is Proposed; acceptance, merge and any future patch release belong to the owner.
+Authoritative scope: [issue #26](https://github.com/barucoh/pleiad/issues/26). The final review slice prepares candidate 0.1.6 against published stable 0.1.5; it does not publish it. The ADR is Proposed; acceptance, merge and any future patch release belong to the owner.
 
 ## Outcome and ownership
 
@@ -38,7 +38,7 @@ Approved local preview starts independently of unrelated public hosting. Tempora
 
 ## Adoption and compatibility
 
-Native cells are the new managed default across skills, AGENTS, executable roles, config, runtime, validator and documentation. Manifest schema 5 verifies prior schema 1/2/3/4 hashes and path sets before adding resource ownership files. Project customizations remain conflicts. Plugin version remains 0.1.5 for this review slice. Existing checkpoints are never rewritten or silently converted. Explicit legacy-top-level mode retains the original cross-chat schema, fan-out/reconciliation engine and hook boundary. Native in-tree calls do not need legacy sender tuples or giant acknowledgement envelopes.
+Native cells are the new managed default across skills, AGENTS, executable roles, config, runtime, validator and documentation. Manifest schema 5 verifies prior schema 1/2/3/4 hashes and path sets before adding resource ownership files. Project customizations remain conflicts. The final candidate version is 0.1.6; stable remains 0.1.5 until owner-approved integration. Existing checkpoints are never rewritten or silently converted. Explicit legacy-top-level mode retains the original cross-chat schema, fan-out/reconciliation engine and hook boundary. Native in-tree calls do not need legacy sender tuples or giant acknowledgement envelopes.
 
 ## Evidence and acceptance
 

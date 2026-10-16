@@ -1,0 +1,17 @@
+{
+  "v0.1.0": {
+    "commit": "f58c2b43bf0e3bf907acd1c883224f99ea6f57fc",
+    "sha256": "f8bf0169381623606d9ea517f34d57358f58daf3265c783d92e6c79c52a3645f",
+    "paths": "AGENTS.md, .pleiad/managed.json and every file recorded in that unmodified release ledger"
+  },
+  "v0.1.3": {
+    "commit": "6f2995d89853af1a000eee9ac591e159f4af29ad",
+    "sha256": "c0c0ee907aed9a0f3b80ef4588d08ac08d88ebbea8ac84646fdf0ea65d450550",
+    "paths": "AGENTS.md, .pleiad/managed.json and every file recorded in that unmodified release ledger"
+  },
+  "v0.1.5": {
+    "commit": "896b59e5965aa97da427ca414c7173760251716b",
+    "sha256": "090571eb8169147775014189bde9b8993d8b002244b2a9ffa8e05fc551017c4e",
+    "paths": "AGENTS.md, .pleiad/managed.json and every file recorded in that unmodified release ledger"
+  }
+}

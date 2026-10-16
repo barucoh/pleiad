@@ -34,7 +34,7 @@ A team marketplace can point at a stable tag instead of a local checkout:
     "source": {
       "source": "url",
       "url": "https://github.com/barucoh/pleiad.git",
-      "ref": "v0.1.0"
+      "ref": "v0.1.5"
     },
     "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
     "category": "Productivity"
@@ -54,4 +54,6 @@ Pleiad has a new plugin identifier. Remove the old installation with `codex plug
 
 Codex’s saved-project label and local checkout path are host UI state, so Pleiad does not edit them. After the repository rename has merged, use Codex’s supported saved-project UI to rename or remove and re-add the project, pointing it to the new local `pleiad` checkout.
 
-Managed Captain support adds `.codex/agents/captain.toml`, `.pleiad/captain-queue.schema.json`, `scripts/captain_queue.py` and `docs/pleiad/captain.md`. Manifest schema 4 validates prior schema 1/2/3 state before adding these files; existing native/legacy checkpoints are preserved. See [Captain supervision](pleiad/captain.md).
+Published stable is v0.1.5 as verified on 2026-10-16. Candidate 0.1.6 is an unmerged development review stack, not a published tag. New deployments use the latest stable release; explicit candidate evaluation uses its exact reviewed commit in a local checkout. Installing the plugin alone does not alter adopted repositories.
+
+The candidate installs native-cell records/runtime, Captain role/queue/procedure and resource ownership with managed manifest schema 5. Verified schema 1/2/3/4 path sets migrate before adding files. Existing native/legacy checkpoints remain unchanged. Use the existing persistent project home as Captain (default cap 2); do not create a competing home or rename it per issue. Standalone CO remains supported. Start a new session so candidate skills and roles are loaded, review the changed project hook through `/hooks`, then follow [upgrading](upgrading.md) and the [pilot runbook](pleiad/migration-pilot.md).

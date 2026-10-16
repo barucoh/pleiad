@@ -11,11 +11,12 @@ See [installation](docs/installation.md) for local and version-pinned Git-backed
 ## Use
 
 - Invoke `bootstrap-pleiad` in a repository that has not adopted the workflow.
+- Invoke `captain-pleiad` from an existing persistent project home to supervise a queue (default cap 2).
 - Invoke `coordinate-pleiad` to route durable role work, read-only research, corrections, or uncertain cross-task delivery.
 - Invoke `adr-context` when a task may be constrained by architectural decisions.
 - Invoke `upgrade-pleiad` after installing a newer plugin release.
 
-Bootstrap and upgrade always inspect first, report a deterministic dry run, preserve project-owned content, stop on managed drift or ambiguous ownership, and require explicit approval before repository writes. Apply is idempotent and followed by a drift check.
+Bootstrap and upgrade always inspect first, report a deterministic dry run, preserve project-owned content, stop on managed drift or ambiguous ownership, and apply within the owner-authorized adoption/upgrade scope. Apply is idempotent and followed by a drift check.
 
 Coordinator is the human-facing owner of cell progress, activation, supervision, recovery, and consolidated outcome reporting. When a persistent home task delegates an issue Coordinator, progress and outcomes stay within that coordination chain. Human authorization for the cell workflow covers scoped internal peer coordination, subject to host/tool permission requirements; the plugin grants no permissions and cannot bypass host restrictions. Human product decisions, credentials/permissions, acceptance, and merge authority remain explicit, and voluntary inspection of specialist tasks is welcome.
 
@@ -35,7 +36,7 @@ python scripts/validate.py
 python -m unittest discover -s tests -v
 ```
 
-Pull requests target `main`. Only the repository owner may merge. Versions are sourced from `.codex-plugin/plugin.json`; merging a previously unreleased version to `main` creates the corresponding GitHub release. Pleiad starts at `0.1.0` and advances through deliberately small patch releases (`0.1.1`, `0.1.2`, and so on); changing the minor or major component requires explicit repository-owner direction.
+Pull requests normally target `main`; the explicitly authorized #26–#29 unmerged review stack targets each predecessor branch. Only the repository owner may merge. Versions are sourced from `.codex-plugin/plugin.json`; merging a previously unreleased version to `main` creates the corresponding GitHub release. Pleiad starts at `0.1.0` and advances through deliberately small patch releases (`0.1.1`, `0.1.2`, and so on); changing the minor or major component requires explicit repository-owner direction.
 
 ## Self-hosting
 
@@ -44,3 +45,5 @@ This repository dogfoods Pleiad. Release pull requests update both the plugin ma
 See the [native cell candidate design](docs/pleiad/native-delivery-design.md), [proposed ADR](docs/decisions/ADR-0001-native-coordinator-cells.md), and `scripts/native_cell.py --help` for mechanical assignment/result/checkpoint construction. Subagents inherit parent sandbox/approvals; CO is a behavioral non-writer and only IM edits source/commits. Initial CO/IM instructions carry verified standing issue-delivery authorization; routine PR publication has no second approval hold. Human merge authority and native denials remain explicit.
 
 Captain (CP) provides a persistent project home for multiple durable issue COs. Use `captain-pleiad` and the [Captain queue procedure](docs/pleiad/captain.md) for cap/dependency/ownership admission and active recovery; `coordinate-pleiad` still supports standalone cells. CP/CO transport handles stay local, and verified local-review-ready PRs wait for owner approval to merge.
+
+Candidate 0.1.6 is prepared for local review against stable 0.1.5. See the [cumulative review and pilot runbook](docs/pleiad/migration-pilot.md) for checkout, verification, recovery, merge order and the separately authorized Lingo pilot. No installation in another project is performed by this PR.

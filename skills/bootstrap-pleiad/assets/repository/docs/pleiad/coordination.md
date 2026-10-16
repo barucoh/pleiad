@@ -74,7 +74,7 @@ Coordinator owns supervision and recovery through the coordination chain and Cap
 
 ## Explicit legacy compatibility
 
-Use `execution_mode: legacy-top-level` only for existing cells or explicit isolation/ownership/platform exceptions. Keep old checkpoints and handoff schema unchanged; `load_checkpoint(..., mode="legacy-top-level")` returns them unchanged to the legacy adapter. Native load rejects them with an actionable opt-in message. Adoption/upgrade changes defaults for new cells, never running state. Follow [legacy coordination](legacy-coordination.md) and its retained `dispatch_issue_task` / `send_cross_task_handoff`, validation, watchdog, child-recipient and no-replay behavior. Top-level hook guard remains scoped to those calls; native spawn is not a legacy handoff boundary.
+Use `execution_mode: legacy-top-level` only for existing cells or explicit isolation/ownership/platform exceptions. Keep old checkpoints and handoff schema unchanged; `load_checkpoint(..., mode="legacy-top-level")` returns them unchanged to the legacy adapter. Native load rejects them with an actionable opt-in message. Adoption/upgrade changes defaults for new cells, never running state. Follow [legacy coordination](legacy-coordination.md) and its retained `dispatch_issue_task` / `send_cross_task_handoff`, validation, watchdog, child-recipient and no-replay behavior. The top-level hook retains these legacy envelopes and accepts compact Captain boundaries for CP/CO durable task calls; native spawn is not a legacy handoff boundary.
 
 ## Operational ownership
 

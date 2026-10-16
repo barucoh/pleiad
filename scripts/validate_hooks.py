@@ -53,6 +53,14 @@ def main() -> int:
     valid = run_guard({"tool_name": "codex_app__create_thread", "tool_input": {"prompt": "PLEIAD_HANDOFF: " + json.dumps(template)}})
     legacy = run_guard({"tool_name": "codex_app__create_thread", "tool_input": {"prompt": "ASDLC_HANDOFF: " + json.dumps(template)}})
     invalid = run_guard({"tool_name": "codex_app__send_message_to_thread", "tool_input": {"prompt": "PLEIAD_HANDOFF: {\"schema_version\": \"1.0.0\"}"}})
+    from captain_queue import create, enqueue, initial_instructions, reserve
+    queue = create("probe/repository")
+    enqueue(queue, 1, "Boundary probe", ["src"], evidence_urls=["https://github.com/probe/repository/issues/1"])
+    reserve(queue, 1, "Check the typed Captain boundary.")
+    captain = run_guard({"tool_name": "codex_app__create_thread", "tool_input": {"prompt": initial_instructions(queue, 1)}})
+    if captain.returncode != 0 or captain.stdout.strip():
+        print("valid Captain task hook probe was not allowed", file=sys.stderr)
+        return 2
     if valid.returncode != 0 or valid.stdout.strip():
         print("valid native-task hook probe was not allowed", file=sys.stderr)
         return 2
