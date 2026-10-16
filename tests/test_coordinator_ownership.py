@@ -1,6 +1,7 @@
 """Issue #24 instruction boundaries and managed adoption regression coverage."""
 
 import json
+import re
 import sys
 import tempfile
 import tomllib
@@ -23,20 +24,20 @@ class CoordinatorOwnershipTests(unittest.TestCase):
     )
 
     def test_instruction_contract_preserves_authority_and_recovery(self):
-        for relative in self.policy_paths:
+        # Shared policy belongs in canonical procedures, not repeated in each role.
+        for relative in self.policy_paths[:3]:
             text = (manage_repository.TEMPLATES / relative).read_text(encoding="utf-8").lower()
             with self.subTest(path=relative):
                 for phrase in ("host/tool permission", "plugin grants no permissions", "human", "coordinator", "recovery", "native"):
                     self.assertIn(phrase, text)
                 self.assertNotIn("never as an ephemeral subagent", text)
-        for relative in ("skills/coordinate-pleiad/SKILL.md", "skills/bootstrap-pleiad/SKILL.md",
-                         "skills/upgrade-pleiad/SKILL.md", "README.md", "docs/upgrading.md"):
+        for relative in ("README.md", "docs/upgrading.md"):
             text = (ROOT / relative).read_text(encoding="utf-8").lower()
             with self.subTest(path=relative):
                 for phrase in ("coordination chain", "one actionable human blocker", "last-resort recovery artifact",
                                "voluntary inspection", "scoped internal peer coordination", "independent qa/review"):
                     self.assertIn(phrase, text)
-        for role in ("coordinator", "implementation", "qa", "reviewer"):
+        for role in ("coordinator", "implementation", "qa", "reviewer", "product", "architecture", "knowledge_steward"):
             path = manage_repository.TEMPLATES / f".codex/agents/{role}.toml"
             contract = tomllib.loads(path.read_text(encoding="utf-8"))
             self.assertNotIn("sandbox_mode", contract)
@@ -44,9 +45,32 @@ class CoordinatorOwnershipTests(unittest.TestCase):
             self.assertIn("subagents inherit parent sandbox", text)
             self.assertIn("only im writes project files or commits", text)
             self.assertIn("explicit legacy-top-level opt-in", text)
+            self.assertIn("preserve native denials", text)
+            # A role loaded directly must discover the complete shared procedures.
+            for name in ("role-contracts", "coordination", "resources", "legacy-coordination"):
+                self.assertIn(f"docs/pleiad/{name}.md", text)
+                self.assertTrue((manage_repository.TEMPLATES / f"docs/pleiad/{name}.md").is_file())
+        for role, boundary in (("implementation", "sole source writer"), ("qa", "no source changes"),
+                               ("reviewer", "own independent exact-sha verdict")):
+            contract = tomllib.loads((manage_repository.TEMPLATES / f".codex/agents/{role}.toml").read_text())
+            self.assertIn(boundary, contract["developer_instructions"].lower())
         co = (manage_repository.TEMPLATES / ".codex/agents/coordinator.toml").read_text().lower()
         self.assertIn("never author qa/rv verdicts", co)
         self.assertIn("standing authorization", co)
+
+    def test_skill_entrypoints_discover_installed_safety_procedures(self):
+        for name in ("coordinate-pleiad", "bootstrap-pleiad", "upgrade-pleiad"):
+            entrypoint = ROOT / f"skills/{name}/SKILL.md"
+            text = entrypoint.read_text(encoding="utf-8")
+            targets = [(entrypoint.parent / link).resolve() for link in re.findall(r"\]\(([^)]+)\)", text)]
+            with self.subTest(skill=name):
+                for procedure in ("role-contracts", "coordination", "resources", "legacy-coordination", "captain"):
+                    self.assertIn((manage_repository.TEMPLATES / f"docs/pleiad/{procedure}.md").resolve(), targets)
+                self.assertTrue(all(path.is_file() for path in targets))
+                self.assertIn("installed", text.lower())
+                self.assertIn("AGENTS.md", text)
+                self.assertIn("commit/push/PR/CI/QA/review", text)
+                self.assertIn("legacy-top-level", text)
 
     def test_fresh_and_pristine_previous_patch_receive_policy_idempotently(self):
         candidate_version = manage_repository.plugin_version()
@@ -78,7 +102,8 @@ class CoordinatorOwnershipTests(unittest.TestCase):
                     self.assertTrue(set(self.policy_paths).issubset(changed))
                 manage_repository.apply(target, writes, obsolete, "Policy Fixture")
                 for relative in self.policy_paths:
-                    self.assertIn("native task messaging", (target / relative).read_text(encoding="utf-8").lower())
+                    self.assertEqual((target / relative).read_text(encoding="utf-8"),
+                                     original_template(relative, "Policy Fixture"))
                 self.assertEqual(json.loads((target / ".pleiad/managed.json").read_text())["plugin_version"], candidate_version)
                 final, _, _ = manage_repository.plan(target, "Policy Fixture")
                 self.assertFalse([a for a in final if a.classification not in {"unchanged", "preserve"}])
