@@ -129,7 +129,9 @@ def enqueue(queue, issue_number, title, ownership_paths, *, dependencies=(), pri
     else:
         candidate["cells"].append(dict(issue_number=issue_number, issue_url=f"https://github.com/{queue['repository']}/issues/{issue_number}", title=title,
             ownership=list(ownership_paths), dependencies=list(dependencies), priority=priority, issue_state=issue_state,
-            state="closed" if issue_state == "closed" else "queued", lease=False, blocker="", cell_id="", pr_url="", branch="", sha="", assignment=None, progress=None, attempts=[], recoveries=[], denials=[], evidence=list(evidence_urls)))
+            state="closed" if issue_state == "closed" else "queued", lease=False, blocker="", reconciliation_required=False, cell_id="", pr_url="", branch="", sha="", assignment=None, progress=None, attempts=[], recoveries=[], denials=[], evidence=list(evidence_urls)))
+    if not entry(candidate, issue_number)["cell_id"]:
+        entry(candidate, issue_number)["reconciliation_required"] = False
     validate(candidate)
     queue.update(candidate)
 
@@ -142,7 +144,7 @@ def admission_blocker(queue, cell):
     for dep in cell["dependencies"]:
         other = next((c for c in queue["cells"] if c["issue_number"] == dep["issue_number"]), None)
         allowed = {"closed"} if dep["requires"] == "closed" else {"local_review_ready", "closed"}
-        if not other or other["state"] not in allowed or other["lease"]:
+        if not other or other["reconciliation_required"] or other["state"] not in allowed or other["lease"]:
             return f"dependency #{dep['issue_number']} requires {dep['requires']}"
     holders = [c for c in queue["cells"] if c["lease"] and c is not cell]
     if len(holders) >= queue["cap"]:
@@ -153,13 +155,21 @@ def admission_blocker(queue, cell):
     return ""
 
 
+def current_activation(c):
+    if not c["assignment"]:
+        return None
+    return next((a for a in reversed(c["attempts"]) if a["kind"] == "activate" and a["generation"] == c["assignment"]["generation"]), None)
+
+
 def next_actions(queue):
     """Active follow-through, not a passive poll: every cell gets an action/reason."""
     validate(queue)
     output = []
     for c in sorted(queue["cells"], key=lambda c: (-c["priority"], c["issue_number"])):
         uncertain = next((a for a in reversed(c["attempts"]) if a["status"] in {"unknown", "failed"}), None)
-        if any(d["status"] == "unresolved" for d in c["denials"]):
+        if c["reconciliation_required"]:
+            action, reason = "reconcile", "fresh issue/branch/PR/head and CO evidence required before readiness or dependency reuse"
+        elif any(d["status"] == "unresolved" for d in c["denials"]):
             action, reason = "resolve_denial", "supported native resolution required; no retry"
         elif uncertain:
             action, reason = "reconcile", f"observe exact attempt {uncertain['id']} before retry"
@@ -172,6 +182,10 @@ def next_actions(queue):
         elif c["state"] == "queued":
             reason = admission_blocker(queue, c)
             action = "wait_dependency_or_capacity" if reason else "activate"
+        elif current_activation(c) and current_activation(c)["status"] == "absent":
+            action, reason = "retry_activation", "current-generation activation proven absent; retry same logical assignment"
+        elif not current_activation(c) or current_activation(c)["status"] != "applied":
+            action, reason = "reconcile", "current-generation applied activation required before CO continuation"
         elif c["progress"]:
             action, reason = "continue_co", c["progress"]["next_action"]
         else:
@@ -185,6 +199,7 @@ def reserve(queue, issue, objective, *, model="gpt-6-astra", effort="Medium", ra
     validate(queue)
     c = entry(queue, issue)
     require(c["state"] == "queued" and not c["assignment"] and not c["blocker"], "reconcile existing assignment; never create a duplicate CO")
+    require(not c["reconciliation_required"], "fresh issue reconciliation required before admission")
     require(not admission_blocker(queue, c), admission_blocker(queue, c))
     candidate = copy.deepcopy(queue)
     c = entry(candidate, issue)
@@ -269,6 +284,7 @@ def attempt(queue, issue, kind="continue"):
     validate(queue)
     c = entry(queue, issue)
     require(c["assignment"] and c["lease"] and not c["blocker"], "active reserved unblocked CO required")
+    require(not c["reconciliation_required"], "fresh issue/CO reconciliation required before transport")
     require(not any(d["status"] == "unresolved" for d in c["denials"]), "native denial requires supported resolution")
     require(not any(a["status"] in {"unknown", "failed"} for a in c["attempts"]), "reconcile failed/unknown activation or send before another action")
     require(kind in {"activate", "continue"}, "unsupported transport action")
@@ -276,7 +292,7 @@ def attempt(queue, issue, kind="continue"):
         previous = [a for a in c["attempts"] if a["kind"] == kind and a["generation"] == c["assignment"]["generation"]]
         require(previous and previous[-1]["status"] == "absent" and not c["progress"], "successful activation cannot repeat")
     else:
-        require(any(a["kind"] == "activate" and a["status"] == "applied" for a in c["attempts"]), "reconcile successful activation first")
+        require(current_activation(c) and current_activation(c)["status"] == "applied", "reconcile current-generation successful activation first")
     record = dict(id=uid(), assignment_id=c["assignment"]["id"], generation=c["assignment"]["generation"], kind=kind, status="unknown", evidence=[])
     c["attempts"].append(record)
     validate(queue)
@@ -293,6 +309,7 @@ def progress(queue, local, issue, source, cell, *, cell_local, observed_sha, obs
     rehydrate_cell(cell, cell_local, observed_sha=observed_sha, observed_pr=observed_pr, observed_issue_url=cell["issue_url"], observed_branch=cell["branch"])
     c = entry(queue, issue)
     source_guard(queue, local, c, source)
+    require(current_activation(c) and current_activation(c)["status"] == "applied", "current-generation applied activation required before CO progress")
     require(not any(d["status"] == "unresolved" for d in c["denials"]), "native denial requires supported resolution")
     evidence(queue, evidence_urls)
     require(cell["repository"] == queue["repository"] and cell["issue_number"] == issue, "CO cell identity mismatch")
@@ -302,14 +319,16 @@ def progress(queue, local, issue, source, cell, *, cell_local, observed_sha, obs
     require(not c["cell_id"] or c["cell_id"] == cell["cell_id"], "one CO cell identity per issue")
     require(not c["pr_url"] or c["pr_url"] == cell["pr_url"], "one CO PR identity per issue")
     require(not c["branch"] or c["branch"] == cell["branch"], "one CO branch identity per issue")
-    if c["state"] == "local_review_ready" and cell["state"] != "LOCAL_REVIEW_READY":
+    if c["sha"] and c["sha"] != cell["sha"]:
+        c["reconciliation_required"] = True
+    if not c["lease"] and (c["sha"] != cell["sha"] or cell["state"] != "LOCAL_REVIEW_READY" or not quiescent):
         require(not admission_blocker(queue, c), "changed head needs capacity/ownership admission before continuation")
     if any(d["status"] == "unresolved" for d in cell["denials"]):
         blocker = "native denial: supported resolution required"
     candidate = copy.deepcopy(queue)
     c = entry(candidate, issue)
     record = dict(assignment_id=c["assignment"]["id"], generation=c["assignment"]["generation"], cell_id=cell["cell_id"], state=cell["state"], sha=cell["sha"], pr_url=cell["pr_url"], next_action=next_action, evidence=list(evidence_urls), cell_digest=digest(cell))
-    c.update(progress=record, blocker=blocker, state="blocked" if blocker else "active", lease=True, cell_id=cell["cell_id"], pr_url=cell["pr_url"], branch=cell["branch"], sha=cell["sha"])
+    c.update(progress=record, blocker=blocker, reconciliation_required=False, state="blocked" if blocker else "active", lease=True, cell_id=cell["cell_id"], pr_url=cell["pr_url"], branch=cell["branch"], sha=cell["sha"])
     if cell["state"] == "LOCAL_REVIEW_READY" and quiescent and not blocker:
         c.update(state="local_review_ready", lease=False)
     elif c["issue_state"] == "closed" and quiescent and not blocker:
@@ -327,6 +346,7 @@ def recover(queue, local, issue, *, observed_status, evidence_urls):
     evidence(queue, evidence_urls)
     require(observed_status in {"stopped", "lost-confirmed"}, "prove old CO stopped/lost before recovery")
     require(c["assignment"] and c["lease"] and not c["blocker"], "resolve blockers/native denials through supported flow first")
+    require(not c["reconciliation_required"], "fresh issue/CO reconciliation required before recovery")
     require(not any(d["status"] == "unresolved" for d in c["denials"]), "native denial requires supported resolution")
     require(not any(a["status"] in {"unknown", "failed"} for a in c["attempts"]), "reconcile pending transport before replacement")
     key = c["assignment"]["id"]
@@ -378,19 +398,29 @@ def configured_cap(repository):
 def rehydrate(queue, local, observations):
     """Reconstruct from durable issues/CO checkpoints plus fresh host observations.
 
-    observations map issue numbers to {issue_state, cell_digest}; unresolved
-    dispatches may resume only to reconcile, never to resend. Missing local state
+    Observations require issue_state/issue_url for every issue, plus branch,
+    sha/pr_url for every observed cell and source/cell_digest when applicable.
+    Unresolved dispatches may resume only to reconcile, never to resend. Missing local state
     must be rebuilt from actual host history before this function can succeed.
     """
     validate(queue)
+    # Fail closed even if a caller catches the error: stale readiness cannot
+    # satisfy a dependency or be reported by next_actions. Persist these flags.
+    for c in queue["cells"]:
+        c["reconciliation_required"] = True
     local_guard(queue, local)
     for c in queue["cells"]:
         observed = observations.get(str(c["issue_number"]), {})
+        require(observed.get("issue_url") == c["issue_url"], "fresh exact issue identity required")
         require(observed.get("issue_state") == c["issue_state"], "fresh issue state reconciliation required")
+        if c["cell_id"]:
+            require(all(k in observed for k in ("branch", "pr_url", "sha")), "fresh GitHub branch/PR/head required")
+            require(observed["branch"] == c["branch"] and observed["pr_url"] == c["pr_url"] and observed["sha"] == c["sha"], "GitHub branch/PR/head changed; reconcile CO and reverify before reuse")
         if not c["assignment"]:
+            c["reconciliation_required"] = False
             continue
         key = c["assignment"]["id"]
-        applied = any(a["status"] == "applied" and a["generation"] == c["assignment"]["generation"] for a in c["attempts"])
+        applied = current_activation(c) and current_activation(c)["status"] == "applied"
         if applied:
             b = local["bindings"].get(key, {})
             source_guard(queue, local, c, b.get("source"))
@@ -400,6 +430,7 @@ def rehydrate(queue, local, observations):
                 require(local["receipts"].get(a["id"]) == digest(a), "transport receipt missing/altered; reconcile")
         if c["progress"]:
             require(local["receipts"].get(key) == digest(c["progress"]) and observed.get("cell_digest") == c["progress"]["cell_digest"], "CO progress/head changed; reconcile before reuse")
+        c["reconciliation_required"] = False
     return next_actions(queue)
 
 

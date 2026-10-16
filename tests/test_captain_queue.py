@@ -39,15 +39,21 @@ class CaptainScenarios(unittest.TestCase):
         cell["pr_url"] = f"https://github.com/o/r/pull/{issue}"
         local = {"coordinator": f"host-co-{issue}", "bindings": {}, "contexts": {}, "receipts": {}, "identity": native.digest(native.identity(cell)), "pr_url": cell["pr_url"]}
         if ready:
-            for role in ("implementation", "qa", "reviewer"):
-                a = native.assignment(cell, role, "Scoped independent work.", "gpt-6-luna" if role == "implementation" else "gpt-6.1-sol", "Low" if role == "implementation" else "Medium", "Scoped independent work.")
-                source = f"host-{issue}-{role}"
-                native.bind(cell, local, a["id"], source)
-                r = native.result(a, SHA, "ready" if role == "implementation" else "passed", [cell["pr_url"]], checks=CHECKS, final_guard=role == "qa")
-                native.receive(cell, local, source, r)
-            cell["ci"] = "passed"
-            native.local_review_ready(cell, local)
+            self.finish_cell(cell, local)
         return cell, local
+
+    def finish_cell(self, cell, local):
+        for role in ("implementation", "qa", "reviewer"):
+            a = native.assignment(cell, role, "Scoped independent work.", "gpt-6-luna" if role == "implementation" else "gpt-6.1-sol", "Low" if role == "implementation" else "Medium", "Scoped independent work.")
+            source = f"host-{cell['issue_number']}-{role}"
+            native.bind(cell, local, a["id"], source)
+            r = native.result(a, cell["sha"], "ready" if role == "implementation" else "passed", [cell["pr_url"]], checks=CHECKS, final_guard=role == "qa")
+            native.receive(cell, local, source, r)
+        cell["ci"] = "passed"
+        native.local_review_ready(cell, local)
+
+    def observations(self):
+        return {str(c["issue_number"]): dict(issue_url=c["issue_url"], issue_state=c["issue_state"], source=f"host-co-{c['issue_number']}", branch=c["branch"], pr_url=c["pr_url"], sha=c["sha"], cell_digest=c["progress"]["cell_digest"] if c["progress"] else "") for c in self.queue["cells"]}
 
     def observe(self, issue, cell, local, *, next_action="Activate independent QA and RV.", quiescent=False, blocker=""):
         cp.progress(self.queue, self.local, issue, f"host-co-{issue}", cell, cell_local=local, observed_sha=cell["sha"], observed_pr=cell["pr_url"], next_action=next_action, quiescent=quiescent, blocker=blocker, evidence_urls=[cell["issue_url"]])
@@ -118,7 +124,7 @@ class CaptainScenarios(unittest.TestCase):
         self.add(2)
         a = cp.reserve(self.queue, 1, "Activation may have succeeded.")
         restored = json.loads(json.dumps(self.queue))
-        self.assertEqual(cp.rehydrate(restored, self.local, {"1": {"issue_state": "open"}, "2": {"issue_state": "open"}})[0]["action"], "reconcile")
+        self.assertEqual(cp.rehydrate(restored, self.local, self.observations())[0]["action"], "reconcile")
         for issue in (1, 2):
             with self.assertRaises(native.CellError):
                 cp.reserve(restored, issue, "No duplicate or excess admission.")
@@ -170,7 +176,7 @@ class CaptainScenarios(unittest.TestCase):
         with self.assertRaisesRegex(native.CellError, "bound CO"):
             cp.progress(self.queue, self.local, 1, "host-observed-cp", cell, cell_local=local, observed_sha=SHA, observed_pr=cell["pr_url"], next_action="Review.", evidence_urls=[cell["issue_url"]])
         self.observe(1, cell, local, quiescent=True)
-        observations = {"1": {"issue_state": "open", "source": "host-co-1", "cell_digest": native.digest(cell)}}
+        observations = self.observations()
         cp.rehydrate(self.queue, self.local, observations)
         altered = copy.deepcopy(self.queue)
         altered["cells"][0]["ownership"] = ["elsewhere"]
@@ -213,6 +219,99 @@ class CaptainScenarios(unittest.TestCase):
         cp.bind(self.queue, self.local, 1, "observed-replacement-co")
         cp.reconcile(self.queue, self.local, 1, recovery["id"], observed="applied", source="observed-replacement-co", evidence_urls=[cell["issue_url"]])
         self.assertEqual(cp.next_actions(self.queue)[0]["action"], "inspect_co")
+
+    def test_rv1_fully_ready_changed_sha_rechecks_cap_and_overlapping_ownership(self):
+        for cap, claim in ((1, ["src/issue1"]), (2, ["src/issue1/nested.py"])):
+            with self.subTest(cap=cap):
+                self.setUp()
+                self.queue["cap"] = cap
+                self.add(1)
+                self.add(2, claim)
+                self.activate(1)
+                cell, local = self.cell(1, ready=True)
+                self.observe(1, cell, local, quiescent=True)
+                self.activate(2)
+                native.changed_head(cell, "b" * 40)
+                self.finish_cell(cell, local)
+                with self.assertRaisesRegex(native.CellError, "capacity/ownership"):
+                    self.observe(1, cell, local, quiescent=True)
+                c = cp.entry(self.queue, 1)
+                self.assertEqual(c["sha"], SHA)
+                self.assertTrue(c["reconciliation_required"])
+                self.assertEqual(cp.next_actions(self.queue)[0]["action"], "reconcile")
+                # Once the other owner is quiescent, the fully verified new head
+                # can be admitted against the same CO/cell/PR identity.
+                other, other_local = self.cell(2, ready=True)
+                self.observe(2, other, other_local, quiescent=True)
+                self.observe(1, cell, local, quiescent=True)
+                self.assertEqual(cp.entry(self.queue, 1)["sha"], "b" * 40)
+                self.assertFalse(cp.entry(self.queue, 1)["reconciliation_required"])
+
+    def test_rv2_absent_replacement_cannot_continue_historical_activation(self):
+        self.add(1)
+        self.activate(1)
+        cell, local = self.cell(1)
+        self.observe(1, cell, local)
+        a = cp.recover(self.queue, self.local, 1, observed_status="stopped", evidence_urls=[cell["issue_url"]])
+        cp.reconcile(self.queue, self.local, 1, a["id"], observed="absent", evidence_urls=[cell["issue_url"]])
+        before = copy.deepcopy(self.queue)
+        with self.assertRaisesRegex(native.CellError, "current-generation"):
+            cp.attempt(self.queue, 1, "continue")
+        self.assertEqual(self.queue, before)
+        self.assertEqual(cp.next_actions(self.queue)[0]["action"], "retry_activation")
+        retry = cp.attempt(self.queue, 1, "activate")
+        self.assertEqual(retry["generation"], 1)
+        cp.bind(self.queue, self.local, 1, "replacement-co")
+        cp.reconcile(self.queue, self.local, 1, retry["id"], observed="applied", source="replacement-co", evidence_urls=[cell["issue_url"]])
+        self.assertEqual(cp.next_actions(self.queue)[0]["action"], "inspect_co")
+        cp.attempt(self.queue, 1, "continue")
+
+    def test_rv3_qa1_restart_requires_fresh_github_identity_before_ready_reuse(self):
+        self.add(1)
+        self.activate(1)
+        cell, local = self.cell(1, ready=True)
+        self.observe(1, cell, local, quiescent=True)
+        observed = self.observations()
+        cp.rehydrate(self.queue, self.local, observed)
+        self.assertEqual(cp.next_actions(self.queue)[0]["action"], "report")
+        for field, wrong in (("issue_url", "https://github.com/o/r/issues/9"), ("issue_state", "closed"), ("branch", "codex/other"), ("pr_url", "https://github.com/o/r/pull/9"), ("sha", "b" * 40)):
+            for missing in (True, False):
+                with self.subTest(field=field, missing=missing):
+                    q = copy.deepcopy(self.queue)
+                    evidence = copy.deepcopy(observed)
+                    if missing:
+                        evidence["1"].pop(field)
+                    else:
+                        evidence["1"][field] = wrong
+                    with self.assertRaises(native.CellError):
+                        cp.rehydrate(q, self.local, evidence)
+                    self.assertTrue(cp.entry(q, 1)["reconciliation_required"])
+                    self.assertEqual(cp.next_actions(q)[0]["action"], "reconcile")
+                    # Fresh matching native/GitHub observations restore reuse.
+                    cp.rehydrate(q, self.local, observed)
+                    self.assertEqual(cp.next_actions(q)[0]["action"], "report")
+
+    def test_rv3_qa1_changed_head_invalidates_dependency_until_reverified_progress(self):
+        self.add(1)
+        self.add(2, deps=[dict(issue_number=1, requires="local_review_ready")])
+        self.activate(1)
+        cell, local = self.cell(1, ready=True)
+        self.observe(1, cell, local, quiescent=True)
+        observed = self.observations()
+        observed["1"]["sha"] = "b" * 40
+        with self.assertRaisesRegex(native.CellError, "head changed"):
+            cp.rehydrate(self.queue, self.local, observed)
+        self.add(2, deps=[dict(issue_number=1, requires="local_review_ready")])
+        with self.assertRaisesRegex(native.CellError, "requires local_review_ready"):
+            cp.reserve(self.queue, 2, "Cannot consume stale readiness.")
+        # Updating only the issue record must not clear stale cell evidence.
+        self.add(1)
+        self.assertTrue(cp.entry(self.queue, 1)["reconciliation_required"])
+        native.changed_head(cell, "b" * 40)
+        self.finish_cell(cell, local)
+        self.observe(1, cell, local, quiescent=True)
+        cp.rehydrate(self.queue, self.local, self.observations())
+        self.activate(2)
 
     def test_native_denial_not_resolved_by_absent_dispatch(self):
         self.add(1)
