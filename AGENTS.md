@@ -25,4 +25,5 @@
 - Legacy top-level operation requires explicit `legacy-top-level` opt-in and the retained `.pleiad/handoff.schema.json` contract. Never silently convert a legacy checkpoint or create separate top-level specialists by default.
 - Use `adr-context` for selective ADR retrieval. Human acceptance and merge authority remain explicit.
 - Captain is the persistent project home for a durable issue queue; it admits COs under cap/dependencies/writable ownership, actively drives next actions and reconciles uncertain activation before retry. CP/CO is the limited durable cross-session transport; specialists stay in the CO tree. Standalone CO remains supported. Existing Captain home titles need not change per issue.
+- Coordinator owns operational resources through `scripts/resource_guards.py`: consumer leases, final guard, owner certificate, host cleanup and receipt. Keep handles local; never clean active/unresolved resources. Temporary demos need direct bounded owner scope and uncommitted patch/check/rollback; no implied publication, deployment, public exposure, merge or release.
 <!-- pleiad:end -->

@@ -59,3 +59,10 @@ captain_checkpoint_schema: .pleiad/captain-queue.schema.json
 captain_queue_runtime: scripts/captain_queue.py
 captain_concurrency_cap: 2
 captain_home_title: persistent-project-home
+
+resource_lifecycle: cell-resources-v1
+resource_schema: .pleiad/resource-ledger.schema.json
+resource_runtime: scripts/resource_guards.py
+resource_ownership: issue-coordinator-host-cleanup
+resource_handles: git-common-dir-local-only
+temporary_demo: direct-owner-scoped-uncommitted-local-only

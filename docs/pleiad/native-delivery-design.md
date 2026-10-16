@@ -32,13 +32,13 @@ QA/RV findings return to the same IM. A correction assignment advances the gener
 
 ## Operational lifecycle and follow-ups
 
-The agreed resource lifecycle is acquire → use → final guard/evidence → owner certificate → cleanup → cleanup receipt. A live consumer lease blocks cleanup. Private server/port/process/device/tunnel/QA-clone handles remain local. This slice preserves QA's final guard requirement and explicit host cleanup ownership. The full resource ledger/guards and temporary-demo path belong to #28.
+The agreed resource lifecycle is acquire → use → final guard/evidence → owner certificate → cleanup → cleanup receipt. A live consumer lease blocks cleanup. Private server/port/process/device/tunnel/QA-clone handles remain local. This slice preserves QA's final guard requirement and explicit host cleanup ownership. Issue #28 implements the strict resource ledger/schema, shared local serialization, consumer leases, exact guard/owner certificates, observed-handle recovery and cleanup receipts in [cell resources](resources.md). Host adapters retain native cleanup/permission control; the helper never bundles delete/kill operations.
 
-Approved local preview starts independently of unrelated public hosting. Temporary-demo mode requires direct user scope, uncommitted patch/rollback, bounded owned restart and checks. It grants no PR publication, merge, release, public exposure or deployment authority. #29 covers migration pilot and integration evidence, not this single-cell implementation. These follow-ups are intentionally unimplemented here.
+Approved local preview starts independently of unrelated public hosting. Temporary-demo mode requires direct user scope, uncommitted patch/rollback, bounded owned restart and checks. It grants no PR publication, merge, release, public exposure or deployment authority. #29 covers migration pilot and integration evidence, not this single-cell implementation. The bounded temporary-demo record and action guards are implemented by #28; owner scope and uncommitted patch/check/rollback remain explicit. #29 remains a separate integration slice.
 
 ## Adoption and compatibility
 
-Native cells are the new managed default across skills, AGENTS, executable roles, config, runtime, validator and documentation. Manifest schema 4 verifies prior schema 1/2/3 hashes and path sets before adding native files. Project customizations remain conflicts. Plugin version remains 0.1.5 for this review slice. Existing checkpoints are never rewritten or silently converted. Explicit legacy-top-level mode retains the original cross-chat schema, fan-out/reconciliation engine and hook boundary. Native in-tree calls do not need legacy sender tuples or giant acknowledgement envelopes.
+Native cells are the new managed default across skills, AGENTS, executable roles, config, runtime, validator and documentation. Manifest schema 5 verifies prior schema 1/2/3/4 hashes and path sets before adding resource ownership files. Project customizations remain conflicts. Plugin version remains 0.1.5 for this review slice. Existing checkpoints are never rewritten or silently converted. Explicit legacy-top-level mode retains the original cross-chat schema, fan-out/reconciliation engine and hook boundary. Native in-tree calls do not need legacy sender tuples or giant acknowledgement envelopes.
 
 ## Evidence and acceptance
 

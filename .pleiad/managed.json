@@ -2,35 +2,38 @@
   "files": {
     ".codex/agents/architecture.toml": "73dac884ffdc0082a2a86522d9d8101575b67465f64600b065c14738d3424da3",
     ".codex/agents/captain.toml": "f9f2d16caeeccf16f3f75907fba738f2540e6d09971ff8f750ff42077c0684e5",
-    ".codex/agents/coordinator.toml": "7d7a734eceff33de4530700dc788bd14ee42b859d2448d50f7a17e294396f584",
-    ".codex/agents/implementation.toml": "00cee5561f8239ec8a468d14b82a79687fdd9c738a687ddd7271d2ad99622dd4",
+    ".codex/agents/coordinator.toml": "0d810e0cb13647eda27e1f468a5fedb309762341806541ddc1f02f2a6f0c5d72",
+    ".codex/agents/implementation.toml": "51b95ed8a4c79e53b7b73a014d72fdfb32edad0cb4f94de6be047162f20a5e8f",
     ".codex/agents/knowledge_steward.toml": "c8899fdb879eea51036d7c8c109946a0e6f2cd791d3b1ea516c6a3ed0f73020c",
     ".codex/agents/product.toml": "a2dd4a0be9af632ee19075efb044737c5c2334ba91df4e772775a22a3cdb1c78",
-    ".codex/agents/qa.toml": "2532e6d939396e22b83c7c871b60b74c1b9af9cc9e2b2d2f73bbcbf824f8f41b",
-    ".codex/agents/reviewer.toml": "18817daa63186cc8ee85fb7d4903ad21f0e22e5823c9ca1a429f22e61cce92f6",
+    ".codex/agents/qa.toml": "e35e0fd1df5117830f0ec3dbe27db1a7bcd42c4fad354c3723b4f630756f66d5",
+    ".codex/agents/reviewer.toml": "eed10f2a8fd50ba1ff2e3c0cd252a5e5910b893410842d06a0dd6e8b27e69c1d",
     ".codex/hooks.json": "fd05ae3a9496e09835cce179c673dd96ffb41842d78b1b05409a2ae099e059c8",
     ".pleiad/captain-queue.schema.json": "d2b170313d6e3e840d50e02300a25a9e3307d17a28e402a57cbdb82ea9eec58b",
-    ".pleiad/config.yaml": "a9096dc9a295b7ef1c80d7b8cca6fa969add84a934c9a3dff0851c243385b5e6",
+    ".pleiad/config.yaml": "14917ab50c8d5b8d56a8eb5e86322024ec4d1238888646b44abb96ff7ebd5bae",
     ".pleiad/handoff-template.json": "56d01b55c0e44de6165aaa34085b13c131d36f9d23de94c54b00f3f8f4f302a9",
     ".pleiad/handoff.schema.json": "889f85840a183c6ef2a681aa7171edcdb7ea319e36a08b5f35cb23af53d39904",
     ".pleiad/native-cell.schema.json": "fdd50e9afe18d0878fc3fb420cd0992b186e17c53ec7d7ebe6f49bc10b614e53",
+    ".pleiad/resource-ledger.schema.json": "affe246a41cf3b08191a1bc813e84e7ec57ed66c07e5b28a6dc4962dac636d1d",
     "docs/pleiad/captain.md": "59d7286dc8ea92e7d79f73a1f122f60b0ed0ca0726bd22ee647476a3445e9e91",
-    "docs/pleiad/coordination.md": "6ec4b455d8224223e38f06c926e7782fa7c8e35aa80303de5ed9196a7321c717",
+    "docs/pleiad/coordination.md": "6931e2b5646172ddfd3803e270bce0d3f4de430f4aa95d22567fc0cbc9c07941",
     "docs/pleiad/hooks.md": "163b2402d042937d4796a678476386a391e23d4985d4b13d5294fe6414778b43",
     "docs/pleiad/legacy-coordination.md": "7fd3249752ea109439c917171f47706a39a5df5ac98566f21e2e95c024539957",
-    "docs/pleiad/role-contracts.md": "2c34178ad7a958572383d0ce187c47e55626bdbc5c65d545fe15fd8c68278fa1",
+    "docs/pleiad/resources.md": "5e681bd4ad611c0c20a72c5b441def607fd03763315749f4f32774279f3f7151",
+    "docs/pleiad/role-contracts.md": "27896b23da3d8819242511416596e3f4b5ccc7a822971653955b4d11505051b2",
     "scripts/captain_queue.py": "ab169e80325d1e7368833c24607b3d22b5b0168238fd715a01246bdf78a1960c",
     "scripts/coordination_protocol.py": "0edc3bf6432a5821edfbde366f46d27e1100a8c24e6c9d7ac03ddecbe34a06f7",
     "scripts/native_cell.py": "e58194330f1cf929f253929fc93986a94333712a964f73202fe21e7b221d61bb",
     "scripts/pretool_handoff_guard.py": "0b9ab02caeed2ecb5c0c90be89cdd160d2d08e8fc9930abe6522f33004b2f449",
-    "scripts/qa_workspace.py": "fd26a79bb4910192d5cc039ff363ab6b0f3ad2dc7dd8d194ab2f5ab2ac0b7417",
+    "scripts/qa_workspace.py": "400e067c0f49edc390b006bb0a110dea8a33c4df1ac96effb321c8ebf5e6568b",
+    "scripts/resource_guards.py": "0d508da4aed5a845922fe1c47ab29845cb0a3b08b008f9dcfe6d71da0bcfc9b3",
     "scripts/validate_handoff.py": "29121149be574cb5a741b3c7a96784b8ba92af8d221a916eeeb8359d8d022a25",
     "scripts/validate_hooks.py": "0a6f56d94fbe85273bceb5b4eeaeca96912e18c0a5db205679a1040dc28039e3"
   },
   "managed_blocks": {
-    "AGENTS.md": "91f73a658f750849fbc1b936ec3cf52d46e25eafb8213873554500e68242f730"
+    "AGENTS.md": "4a6820caba5dc11eb6f49e066b2bfed8f75776eab1a1771d94b2ee71f2478b23"
   },
   "plugin_version": "0.1.5",
   "project_name": "Pleiad",
-  "schema_version": 4
+  "schema_version": 5
 }

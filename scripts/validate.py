@@ -62,6 +62,11 @@ required_files = [
     ROOT / "scripts/validate_handoff.py",
     ROOT / ".codex/hooks.json",
     ROOT / "scripts/qa_workspace.py",
+    ROOT / "scripts/resource_guards.py",
+    ROOT / ".pleiad/resource-ledger.schema.json",
+    ROOT / "docs/pleiad/resources.md",
+    ROOT / "skills/bootstrap-pleiad/assets/repository/scripts/resource_guards.py",
+    ROOT / "skills/bootstrap-pleiad/assets/repository/.pleiad/resource-ledger.schema.json",
     ROOT / "scripts/validate_hooks.py",
     ROOT / "skills/bootstrap-pleiad/assets/repository/.codex/hooks.json",
     ROOT / "skills/bootstrap-pleiad/assets/repository/scripts/pretool_handoff_guard.py",
@@ -87,6 +92,11 @@ if applied_version != "bootstrap" and applied_version != manifest.get("version")
 
 if "schema_version: 2" not in config:
     errors.append("self-hosted repository must use Pleiad schema 2")
+
+for setting in ("resource_lifecycle: cell-resources-v1", "resource_schema: .pleiad/resource-ledger.schema.json",
+                "resource_runtime: scripts/resource_guards.py", "resource_handles: git-common-dir-local-only"):
+    if setting not in config:
+        errors.append("missing resource ownership configuration: " + setting)
 
 expected_roles = {
     "captain",

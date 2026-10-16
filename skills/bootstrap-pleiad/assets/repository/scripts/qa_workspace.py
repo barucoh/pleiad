@@ -40,6 +40,21 @@ class WorkspaceVerification:
     stderr: str = ""
 
 
+def cleanup_evidence(result: WorkspaceVerification, *, generation: int, final: bool = False) -> dict:
+    """Sanitized final QA receipt; raw snapshots/output remain machine-local.
+
+    The trusted host admits this from the assigned QA source, releases the QA
+    consumer lease, and separately issues its resource-owner certificate. This
+    receipt alone cannot authorize clone removal.
+    """
+    before, after = result.before, result.after
+    return dict(final=final, passed=result.passed, sha=after.head, generation=generation,
+                exact_sha=before.head == after.head and bool(after.head),
+                clone_boundary=result.passed and bool(before.git_common_dir) and before.git_common_dir == after.git_common_dir,
+                source_unchanged=not before.source_diff and not after.source_diff and before.status == after.status,
+                refs_unchanged=before.branch_refs == after.branch_refs and before.implementation_ref == after.implementation_ref)
+
+
 def _git(workspace: Path, *args: str) -> str:
     result = subprocess.run(
         ["git", *args], cwd=workspace, text=True, capture_output=True, check=False
@@ -229,6 +244,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--implementation-repository", required=True)
     parser.add_argument("--declared-output", action="append", default=[])
     parser.add_argument("--intent", action="append", default=[])
+    parser.add_argument("--final", action="store_true", help="mark the last QA workspace guard")
+    parser.add_argument("--generation", type=int, default=0)
+    parser.add_argument("--receipt-only", action="store_true", help="emit sanitized cleanup evidence instead of local command output/snapshots")
     raw = list(argv if argv is not None else sys.argv[1:])
     if "--" not in raw:
         parser.error("a behavioral command is required after --")
@@ -255,7 +273,7 @@ def main(argv: list[str] | None = None) -> int:
         implementation_repository_common_dir=implementation_common_dir,
     )
     if not preflight.passed:
-        print(json.dumps(asdict(preflight), indent=2))
+        print(json.dumps(cleanup_evidence(preflight, generation=args.generation, final=False) if args.receipt_only else asdict(preflight), indent=2))
         return 2
     completed = subprocess.run(command, cwd=args.workspace, text=True, capture_output=True, check=False, shell=False)
     after = capture_snapshot(
@@ -275,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
         declared_output_errors=declaration_errors,
         implementation_repository_common_dir=implementation_common_dir,
     )
-    print(json.dumps(asdict(result), indent=2))
+    print(json.dumps(cleanup_evidence(result, generation=args.generation, final=args.final) if args.receipt_only else asdict(result), indent=2))
     return 0 if result.passed else 2
 
 
