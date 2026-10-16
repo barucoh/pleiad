@@ -49,7 +49,8 @@
           "pr_url",
           "branch",
           "denials",
-          "sha"
+          "sha",
+          "reconciliation_required"
         ],
         "properties": {
           "issue_number": {
@@ -395,6 +396,9 @@
           "sha": {
             "type": "string",
             "pattern": "^(?:[0-9a-f]{40})?$"
+          },
+          "reconciliation_required": {
+            "type": "boolean"
           }
         }
       }
