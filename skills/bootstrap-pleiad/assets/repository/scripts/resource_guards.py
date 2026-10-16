@@ -278,19 +278,27 @@ class LedgerStore:
     persisted to GitHub. Interrupted locks need explicit host reconciliation;
     stale-lock timeout is deliberately unsupported.
     """
-    def __init__(self, path):
+    def __init__(self, path, *, expected_identity=None, require_existing=False, legacy_path=None):
         self.path = Path(path)
+        self.expected_identity = expected_identity
+        self.require_existing = require_existing
+        self.legacy_path = legacy_path
 
     @classmethod
-    def for_repository(cls, repository, cell_id, generation):
+    def for_repository(cls, repository, cell_id, generation, sha, *, legacy=False):
         UUID(cell_id)
         require(type(generation) is int and generation >= 0, "resource generation required")
+        require(isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha), "exact resource SHA required")
         observed = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=repository,
                                   text=True, capture_output=True, check=True).stdout.strip()
         common = Path(observed)
         if not common.is_absolute():
             common = Path(repository) / common
-        return cls(common.resolve() / "pleiad" / "resources" / f"{cell_id}-{generation}.json")
+        directory = common.resolve() / "pleiad" / "resources"
+        old = directory / f"{cell_id}-{generation}.json"
+        return cls(old if legacy else directory / f"{cell_id}-{generation}-{sha}.json",
+                   expected_identity=(cell_id, generation, sha), require_existing=legacy,
+                   legacy_path=None if legacy else old)
 
     @contextmanager
     def transaction(self, initial=None):
@@ -303,17 +311,37 @@ class LedgerStore:
             raise ResourceError("ledger locked; reconcile active/interrupted host before retry") from exc
         try:
             os.close(fd)
-            state = json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else copy.deepcopy(initial)
-            require(isinstance(state, dict) and set(state) == {"ledger", "local"}, "complete local ledger required")
-            validate(state["ledger"])
+            require(not self.require_existing or self.path.exists(), "legacy resource store missing; reconcile rather than creating it")
+            expected = self.expected_identity
+            initial_owner = None
+            if initial is not None:
+                _check_store(initial)
+                initial_identity = tuple(initial["ledger"][k] for k in ("cell_id", "generation", "sha"))
+                require(expected is None or initial_identity == expected, "initial resource identity differs from requested cell/generation/SHA")
+                expected = expected or initial_identity
+                initial_owner = initial["ledger"]["owner"]
+            state = _read_store(self.path) if self.path.exists() else copy.deepcopy(initial)
+            _check_store(state)
+
+            def check_identity():
+                actual = tuple(state["ledger"][k] for k in ("cell_id", "generation", "sha"))
+                require(expected is None or actual == expected, "loaded resource identity differs from requested cell/generation/SHA")
+                require(initial_owner is None or state["ledger"]["owner"] == initial_owner, "loaded resource owner differs from initial owner")
+
+            check_identity()
+            if self.legacy_path is not None and self.legacy_path.exists():
+                historical = _read_store(self.legacy_path)["ledger"]
+                require((historical["cell_id"], historical["generation"]) == expected[:2], "legacy resource identity mismatch; reconcile")
+                require(historical["sha"] != expected[2], "matching legacy resource store exists; reopen with legacy=True and exact original SHA")
 
             def check_ownership():
                 validate(state["ledger"])
+                check_identity()
                 keys = _handle_keys(state)
                 for peer in self.path.parent.glob("*.json"):
                     if peer == self.path:
                         continue
-                    previous = json.loads(peer.read_text(encoding="utf-8"))
+                    previous = _read_store(peer)
                     require(not _overlapping_keys(keys, _handle_keys(previous)), "overlapping resource already owned by another cell/generation; reconcile")
 
             def persist():
@@ -333,6 +361,21 @@ class LedgerStore:
                 persist()
         finally:
             lock.unlink()
+
+
+def _check_store(state):
+    require(isinstance(state, dict) and set(state) == {"ledger", "local"} and isinstance(state["local"], dict),
+            "complete resource store required; keep nonledger sidecars outside resources and reconcile unknown files")
+    validate(state["ledger"])
+
+
+def _read_store(path):
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ResourceError("unreadable resource store; reconcile before host operations") from exc
+    _check_store(state)
+    return state
 
 
 def _handle_keys(state):
