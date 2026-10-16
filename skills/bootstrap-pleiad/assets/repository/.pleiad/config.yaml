@@ -1,10 +1,11 @@
 schema_version: 2
 project_name: "CHANGE_ME"
-applied_plugin_version: 0.1.2
+applied_plugin_version: 0.1.5
 release_channel: stable
 session_title_format: "#{issue_number} {role_code} - {issue_title}"
 session_title_max_characters: 36
 role_codes:
+  captain: CP
   coordinator: CO
   product: PD
   architecture: AR
@@ -14,6 +15,7 @@ role_codes:
   knowledge_steward: KS
 routing_policy: repository-native-v1
 routing_matrix:
+  captain: "gpt-6-astra/Medium|High-with-risk-rationale"
   coordinator: "gpt-6-astra/Medium|High-with-risk-rationale"
   product: "gpt-6.1-sol/Medium|gpt-6-astra/High-with-risk-rationale"
   architecture: "gpt-6.1-sol/Medium|gpt-6-astra/High-with-risk-rationale"
@@ -43,6 +45,7 @@ specialist_agents: native-role-bound
 ephemeral_subagents: bounded-read-only-research-only
 cross_task_watchdog_seconds: 25
 roles:
+  - captain
   - coordinator
   - product
   - architecture
@@ -50,3 +53,9 @@ roles:
   - qa
   - reviewer
   - knowledge_steward
+
+project_supervision: captain-queue-v1
+captain_checkpoint_schema: .pleiad/captain-queue.schema.json
+captain_queue_runtime: scripts/captain_queue.py
+captain_concurrency_cap: 2
+captain_home_title: persistent-project-home

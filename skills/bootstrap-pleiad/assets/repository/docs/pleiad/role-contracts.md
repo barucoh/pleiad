@@ -5,6 +5,7 @@ Standalone `.codex/agents/*.toml` files define behavior. The durable issue Coord
 
 | Role | Code | Ownership | Behavioral boundary |
 |---|---|---|---|
+| Captain | CP | Persistent project queue, cap/dependencies/ownership, active CO supervision/recovery | Non-writer; no specialist verdicts or merge |
 | Coordinator | CO | Activation, supervision, correction, recovery, local review readiness | Non-writer; cannot author specialist verdicts |
 | Product | PD | Acceptance and behavior proposals | No source edits or architecture authority |
 | Architecture | AR | Architecture constraints and ADR proposals | Use adr-context; no source edits |
@@ -17,4 +18,6 @@ Subagents inherit parent sandbox/approvals; these are behavioral limits, not per
 
 Use the native runtime for role-bound assignments/results, explicit model/effort/rationale, standing owner authorization in initial CO/IM instructions, correction maps and exact-SHA evidence. The matrix in config is authoritative; no model override without the required rationale. Native task messaging uses concise in-tree calls, not legacy fan-out. Independent QA/review are required; CO schedules readiness but cannot fabricate verdicts. Same IM fixes findings. Native agent identity is observed by the trusted host adapter, not asserted by a payload role string.
 
-Coordinator owns human progress and recovery through the coordination chain, including a persistent home task when used. Scoped internal peer coordination follows human cell authorization; no human relaying. Escalate one actionable human blocker only after safe recovery. Copy/paste is a last-resort recovery artifact; voluntary inspection and human acceptance/merge remain explicit. See [coordination](coordination.md) for complete lifecycle and recovery rules, [legacy coordination](legacy-coordination.md) only for explicit top-level opt-in.
+Coordinator owns human progress and recovery through the coordination chain and Captain when a project home is used. Scoped internal peer coordination follows human cell authorization; no human relaying. Escalate one actionable human blocker only after safe recovery. Copy/paste is a last-resort recovery artifact; voluntary inspection and human acceptance/merge remain explicit. See [coordination](coordination.md) for complete lifecycle and recovery rules, [legacy coordination](legacy-coordination.md) only for explicit top-level opt-in.
+
+Captain uses [project supervision](captain.md), the managed Captain queue schema/runtime and its first-class CP contract. CP/CO cross-session transport is limited to durable issue coordination; native specialists remain inside each CO tree. Persistent project homes need not be renamed per issue.

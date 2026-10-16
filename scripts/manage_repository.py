@@ -30,7 +30,7 @@ BLOCK_START = "<!-- pleiad:start -->"
 BLOCK_END = "<!-- pleiad:end -->"
 LEGACY_BLOCK_START = "<!-- agentic-sdlc:start -->"
 LEGACY_BLOCK_END = "<!-- agentic-sdlc:end -->"
-MANIFEST_SCHEMA_VERSION = 3
+MANIFEST_SCHEMA_VERSION = 4
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 MANAGED_PATHS = tuple(
@@ -40,6 +40,10 @@ MANAGED_PATHS = tuple(
         ".pleiad/handoff.schema.json",
         ".pleiad/handoff-template.json",
         ".pleiad/native-cell.schema.json",
+        ".pleiad/captain-queue.schema.json",
+        ".codex/agents/captain.toml",
+        "scripts/captain_queue.py",
+        "docs/pleiad/captain.md",
         ".codex/hooks.json",
         ".codex/agents/architecture.toml",
         ".codex/agents/coordinator.toml",
@@ -60,7 +64,11 @@ MANAGED_PATHS = tuple(
         "docs/pleiad/role-contracts.md",
     )
 )
-MANIFEST_V2_MANAGED_PATHS = frozenset(MANAGED_PATHS) - {
+MANIFEST_V3_MANAGED_PATHS = frozenset(MANAGED_PATHS) - {
+    Path(".pleiad/captain-queue.schema.json"), Path(".codex/agents/captain.toml"),
+    Path("scripts/captain_queue.py"), Path("docs/pleiad/captain.md"),
+}
+MANIFEST_V2_MANAGED_PATHS = MANIFEST_V3_MANAGED_PATHS - {
     Path(".pleiad/native-cell.schema.json"), Path("scripts/native_cell.py"),
     Path("docs/pleiad/legacy-coordination.md"),
 }
@@ -220,7 +228,7 @@ def manifest_validation_errors(target: Path, installed: dict, project_name: str)
     if set(installed) != expected_keys:
         errors.append("managed-state manifest fields differ from the authority schema")
     is_v1 = installed.get("schema_version") == 1
-    if installed.get("schema_version") not in {1, 2, MANIFEST_SCHEMA_VERSION}:
+    if installed.get("schema_version") not in {1, 2, 3, MANIFEST_SCHEMA_VERSION}:
         errors.append(f"managed-state schema_version must be {MANIFEST_SCHEMA_VERSION}")
     if not supported_installed_version(installed.get("plugin_version")):
         errors.append(f"managed-state plugin_version is not a supported upgrade source for {plugin_version()}")
@@ -229,7 +237,7 @@ def manifest_validation_errors(target: Path, installed: dict, project_name: str)
 
     files = installed.get("files")
     expected_paths = {relative.as_posix() for relative in MANAGED_PATHS}
-    prior_paths = MANIFEST_V1_MANAGED_PATHS if is_v1 else MANIFEST_V2_MANAGED_PATHS
+    prior_paths = MANIFEST_V1_MANAGED_PATHS if is_v1 else (MANIFEST_V3_MANAGED_PATHS if installed.get("schema_version") == 3 else MANIFEST_V2_MANAGED_PATHS)
     recorded_paths = {relative.as_posix() for relative in (MANAGED_PATHS if installed.get("schema_version") == MANIFEST_SCHEMA_VERSION else prior_paths)}
     if not isinstance(files, dict):
         errors.append("managed-state files must be an object")

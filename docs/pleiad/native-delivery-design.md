@@ -6,7 +6,7 @@ Authoritative scope: [issue #26](https://github.com/barucoh/pleiad/issues/26). T
 
 One persistent Captain (CP) may manage multiple durable issue Coordinators (CO). Each CO owns assignments, workspaces, native specialist activation, corrections, recovery and durable outcomes for one issue. One issue = one CO = one IM branch/worktree = one PR, normally targeting main. A standalone CO is fully supported. Separate top-level specialists are explicit isolation, long-running ownership or platform exceptions. No Story/release integration branches are introduced.
 
-Captain owns queue, dependency readiness, concurrency admission, overlap checks, active supervision, CO recovery and consolidated local-review readiness. The Captain runtime is follow-up #27. This slice implements one cell only and does not claim multi-cell admission.
+Captain owns queue, dependency readiness, concurrency admission, overlap checks, active supervision, CO recovery and consolidated local-review readiness. Issue #27 adds the first-class CP role, captain-pleiad skill and captain_queue.py runtime/schema. Portable per-issue assignments/progress/recovery records are separate from local CO transport bindings. Admission reserves cap/ownership before dispatch, and failed/unknown dispatches require explicit exact-attempt reconciliation before retry. See [Captain procedure](captain.md).
 
 Within a cell, only IM edits source/docs/config or commits. QA independently exercises behavior in a fresh isolated detached clone; RV independently reviews the same exact commit. PD/AR/KS/research/host control are used only when necessary; their proposals go to IM. CO is a behavioral non-writer and may schedule a transition but cannot author a specialist verdict. No agent may approve its own delivery.
 
@@ -38,7 +38,7 @@ Approved local preview starts independently of unrelated public hosting. Tempora
 
 ## Adoption and compatibility
 
-Native cells are the new managed default across skills, AGENTS, executable roles, config, runtime, validator and documentation. Manifest schema 3 verifies prior schema 1/2 hashes and path sets before adding native files. Project customizations remain conflicts. Plugin version remains 0.1.5 for this review slice. Existing checkpoints are never rewritten or silently converted. Explicit legacy-top-level mode retains the original cross-chat schema, fan-out/reconciliation engine and hook boundary. Native in-tree calls do not need legacy sender tuples or giant acknowledgement envelopes.
+Native cells are the new managed default across skills, AGENTS, executable roles, config, runtime, validator and documentation. Manifest schema 4 verifies prior schema 1/2/3 hashes and path sets before adding native files. Project customizations remain conflicts. Plugin version remains 0.1.5 for this review slice. Existing checkpoints are never rewritten or silently converted. Explicit legacy-top-level mode retains the original cross-chat schema, fan-out/reconciliation engine and hook boundary. Native in-tree calls do not need legacy sender tuples or giant acknowledgement envelopes.
 
 ## Evidence and acceptance
 
