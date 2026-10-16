@@ -1,5 +1,6 @@
 """Adversarial operational ownership tests; all host side effects use fixtures."""
 import copy
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -7,7 +8,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import resource_guards as rg
@@ -22,6 +23,19 @@ SHA = "a" * 40
 
 
 class ResourceTests(unittest.TestCase):
+    def test_shared_primitives_preserve_resource_wire_bytes_and_error_type(self):
+        value = {"z": [True, None, "é"], "a": {"b": 2}}
+        wire = b'{"a": {"b": 2}, "z": [true, null, "\\u00e9"]}'
+        self.assertEqual(rg.digest(value), hashlib.sha256(wire).hexdigest())
+        first, second = rg.uid(), rg.uid()
+        self.assertEqual(str(UUID(first)), first)
+        self.assertEqual(UUID(first).version, 4)
+        self.assertNotEqual(first, second)
+        with self.assertRaises(rg.ResourceError):
+            rg.require(False, "resource boundary")
+        with self.assertRaises(rg.ResourceError):
+            rg.create("invalid-cell", "owner", 0, SHA)
+
     def setUp(self):
         self.ledger = rg.create(str(uuid4()), "issue-28-co", 0, SHA)
         self.local = {}

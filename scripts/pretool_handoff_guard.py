@@ -74,16 +74,12 @@ def _envelope_from_text(text: str) -> dict[str, Any] | None:
 def extract_envelope(tool_input: Any) -> dict[str, Any] | None:
     if not isinstance(tool_input, dict):
         return None
-    for key in ("captain_transport", "handoff", "envelope", "pleiad_handoff", "agentic_sdlc_handoff"):
-        candidate = tool_input.get(key)
-        if isinstance(candidate, dict):
-            return candidate
-    metadata = tool_input.get("metadata")
-    if isinstance(metadata, dict):
-        for key in ("captain_transport", "handoff", "envelope", "pleiad_handoff", "agentic_sdlc_handoff"):
-            candidate = metadata.get(key)
-            if isinstance(candidate, dict):
-                return candidate
+    for source in (tool_input, tool_input.get("metadata")):
+        if isinstance(source, dict):
+            for key in ("captain_transport", "handoff", "envelope", "pleiad_handoff", "agentic_sdlc_handoff"):
+                candidate = source.get(key)
+                if isinstance(candidate, dict):
+                    return candidate
     prompt = tool_input.get("prompt")
     return _envelope_from_text(prompt) if isinstance(prompt, str) else None
 

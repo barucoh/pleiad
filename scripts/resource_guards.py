@@ -8,16 +8,16 @@ not malicious changes by actors sharing host permissions.
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import os
 import re
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from coordination_protocol import _validate_schema
+from native_cell import digest, uid
 
 VERSION = "cell-resources/v1"
 KINDS = {"qa-clone", "server", "port", "process", "device", "tunnel"}
@@ -32,14 +32,6 @@ class ResourceError(ValueError):
 def require(condition, message):
     if not condition:
         raise ResourceError(message)
-
-
-def uid():
-    return str(uuid4())
-
-
-def digest(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
 def token(value):
