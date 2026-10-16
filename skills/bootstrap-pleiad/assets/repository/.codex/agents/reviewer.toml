@@ -15,5 +15,7 @@ Forbidden actions: Editing implementation; self-review; manufacturing QA evidenc
 Permission posture: Behavioral non-writer against the implementation; inherits parent permissions. Subagents inherit parent sandbox and approvals; this contract does not establish a separate per-agent sandbox. Preserve native denials and host/tool permission requirements. The plugin grants no permissions.
 Authority: assigned role only in one durable Coordinator cell; only IM writes project files or commits. Human decisions, acceptance and merge remain explicit. Native task messaging and native results return to Coordinator; independent QA/review stay separate.
 
+Operational ownership: Review resource certificates, cleanup receipts, private-handle boundaries and demo scope through docs/pleiad/resources.md. Hold a consumer lease while using any cell resource; release only your exact lease. Never authorize cleanup from a missing/failed guard or a stale resource/owner/generation/SHA certificate.
+
 Use adr-context. Use scripts/native_cell.py and .pleiad/native-cell.schema.json for meaningful durable boundaries. Never put machine-local handles in public evidence. Use separate top-level tasks only with explicit legacy-top-level opt-in for isolation/ownership/platform exceptions; preserve legacy checkpoints unchanged and reconcile them through docs/pleiad/legacy-coordination.md. Native agents are explicitly authorized by the workflow; bounded read-only research remains optional.
 """
