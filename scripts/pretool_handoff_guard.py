@@ -59,7 +59,7 @@ def _envelope_from_text(text: str) -> dict[str, Any] | None:
     direct = _json_object(text.strip())
     if direct is not None:
         return direct
-    marker = re.search(r"(?:PLEIAD_HANDOFF|ASDLC_HANDOFF)\s*:\s*(\{.*)", text, re.DOTALL)
+    marker = re.search(r"(?:PLEIAD_CAPTAIN|PLEIAD_HANDOFF|ASDLC_HANDOFF)\s*:\s*(\{.*)", text, re.DOTALL)
     if marker:
         decoder = json.JSONDecoder()
         try:
@@ -74,13 +74,13 @@ def _envelope_from_text(text: str) -> dict[str, Any] | None:
 def extract_envelope(tool_input: Any) -> dict[str, Any] | None:
     if not isinstance(tool_input, dict):
         return None
-    for key in ("handoff", "envelope", "pleiad_handoff", "agentic_sdlc_handoff"):
+    for key in ("captain_transport", "handoff", "envelope", "pleiad_handoff", "agentic_sdlc_handoff"):
         candidate = tool_input.get(key)
         if isinstance(candidate, dict):
             return candidate
     metadata = tool_input.get("metadata")
     if isinstance(metadata, dict):
-        for key in ("handoff", "envelope", "pleiad_handoff", "agentic_sdlc_handoff"):
+        for key in ("captain_transport", "handoff", "envelope", "pleiad_handoff", "agentic_sdlc_handoff"):
             candidate = metadata.get(key)
             if isinstance(candidate, dict):
                 return candidate
@@ -97,7 +97,7 @@ def denial(errors: list[str]) -> dict[str, Any]:
             "permissionDecisionReason": (
                 "PLEIAD_HANDOFF_INVALID\n"
                 f"- missing/invalid fields: {concise}\n"
-                f"Rebuild with schema_version {SCHEMA_VERSION} and retry; no task/message was created."
+                f"Rebuild with legacy schema_version {SCHEMA_VERSION} or captain-transport/v1; no task/message was created."
             ),
         }
     }
@@ -115,6 +115,14 @@ def evaluate(event: dict[str, Any], root: Path | None = None) -> dict[str, Any] 
     envelope = extract_envelope(event.get("tool_input"))
     if envelope is None:
         return denial(["missing versioned Pleiad envelope in tool_input prompt or metadata"])
+    if envelope.get("schema_version") == "captain-transport/v1":
+        sys.path.insert(0, str(resolved_root / "scripts"))
+        from captain_queue import CellError, validate_transport
+        try:
+            validate_transport(envelope, event["tool_name"])
+        except CellError as exc:
+            return denial([str(exc)])
+        return None
     errors = canonical_validator(resolved_root)(envelope)
     return denial(errors) if errors else None
 

@@ -224,7 +224,56 @@ def initial_instructions(queue, issue):
         "Keep transport handles local. No extra publication hold, recurring automation, merge or release.\n"
         f"Writable ownership: {json.dumps(c['ownership'])}; dependencies: {json.dumps(c['dependencies'])}.\n"
         f"Resume existing cell {c['cell_id'] or '(not yet created)'}; branch {c['branch']}; PR {c['pr_url']}; SHA {c['sha']}. "
-        "Reconcile the original cell and applied work before replacements; never create another IM branch/PR for a recovery.")
+        "Reconcile the original cell and applied work before replacements; never create another IM branch/PR for a recovery.\n"
+        + "PLEIAD_CAPTAIN: " + json.dumps(transport_envelope(queue, issue, "activate")))
+
+
+def validate_transport(envelope, tool_name):
+    """Validate boundary shape, not host identity, queue admission or permission.
+
+    Admission remains the serialized queue's responsibility; a copied JSON payload
+    is never evidence that a reservation, native result or permission was observed.
+    """
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    cell = schema["properties"]["cells"]["items"]["properties"]
+    properties = {k: schema["properties"][k] for k in ("project_id", "repository")}
+    properties.update({k: cell[k] for k in ("issue_number", "issue_url")})
+    properties.update(schema_version={"const": "captain-transport/v1"},
+        operation={"enum": ["activate", "continue", "progress"]},
+        assignment=cell["assignment"]["oneOf"][0], attempt=cell["attempts"]["items"])
+    boundary = dict(type="object", additionalProperties=False, required=list(properties), properties=properties)
+    errors = _validate_schema(envelope, boundary, boundary, "captain_transport")
+    require(not errors, "; ".join(errors[:4]))
+    _portable(envelope)
+    a, attempt_record = envelope["assignment"], envelope["attempt"]
+    require(envelope["issue_url"] == f"https://github.com/{envelope['repository']}/issues/{envelope['issue_number']}", "transport issue identity mismatch")
+    require(a["authorization"] == AUTHORIZATION, "initial CO standing authorization required")
+    require(not validate_routing(dict(to_role="coordinator", target_model=a["model"], effort=a["effort"], rationale=a["rationale"], execution_mode="durable", sandbox_mode="read-only")), "invalid CO transport routing")
+    require(attempt_record["assignment_id"] == a["id"] and attempt_record["generation"] == a["generation"] and attempt_record["id"] != a["id"], "transport assignment/recipient mismatch")
+    operation = envelope["operation"]
+    expected = {"codex_app__create_thread": {"activate"}, "codex_app__send_message_to_thread": {"continue", "progress"}}
+    require(operation in expected.get(tool_name, set()), "transport operation does not match task tool")
+    if operation == "progress":
+        require(attempt_record["kind"] == "activate" and attempt_record["status"] == "applied", "progress requires applied activation")
+        evidence({"repository": envelope["repository"]}, attempt_record["evidence"])
+    else:
+        require(attempt_record["kind"] == operation and attempt_record["status"] == "unknown" and not attempt_record["evidence"], "dispatch requires a pending exact recipient attempt")
+    return envelope
+
+
+def transport_envelope(queue, issue, operation):
+    """Construct a concise hook boundary after queue reservation, before transport."""
+    c = entry(validate(queue), issue)
+    require(c["assignment"] and not c["reconciliation_required"], "reconcile CO assignment before transport")
+    require(not any(d["status"] == "unresolved" for d in c["denials"]), "native denial requires supported resolution")
+    attempt_record = current_activation(c) if operation == "progress" else (c["attempts"][-1] if c["attempts"] else None)
+    require(attempt_record, "reserve exact transport attempt first")
+    if operation != "progress":
+        require(c["lease"], "dispatch requires reserved capacity and ownership")
+    envelope = dict(schema_version="captain-transport/v1", project_id=queue["project_id"],
+        repository=queue["repository"], issue_number=issue, issue_url=c["issue_url"], operation=operation,
+        assignment=copy.deepcopy(c["assignment"]), attempt=copy.deepcopy(attempt_record))
+    return validate_transport(envelope, "codex_app__create_thread" if operation == "activate" else "codex_app__send_message_to_thread")
 
 
 def new_local(queue, captain_source):
@@ -463,6 +512,9 @@ def main(argv=None):
     reserve_cmd.add_argument("--objective", required=True)
     instructions = sub.add_parser("instructions")
     instructions.add_argument("--issue", type=int, required=True)
+    transport = sub.add_parser("transport", help="construct compact CP/CO hook envelope after reservation")
+    transport.add_argument("--issue", type=int, required=True)
+    transport.add_argument("--operation", choices=("activate", "continue", "progress"), required=True)
     sub.add_parser("actions")
     sub.add_parser("validate")
     args = parser.parse_args(argv)
@@ -481,6 +533,8 @@ def main(argv=None):
             elif args.command == "instructions":
                 print(initial_instructions(queue, args.issue))
                 return 0
+            elif args.command == "transport":
+                output = transport_envelope(queue, args.issue, args.operation)
             else:
                 output = next_actions(queue)
         save(queue, args.checkpoint)
