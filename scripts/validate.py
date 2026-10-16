@@ -55,6 +55,9 @@ required_files = [
     ROOT / "skills/bootstrap-pleiad/assets/repository/.pleiad/handoff-template.json",
     ROOT / "scripts/manage_repository.py",
     ROOT / "scripts/coordination_protocol.py",
+    ROOT / "scripts/native_cell.py",
+    ROOT / ".pleiad/native-cell.schema.json",
+    ROOT / "docs/pleiad/native-delivery-design.md",
     ROOT / "scripts/pretool_handoff_guard.py",
     ROOT / "scripts/validate_handoff.py",
     ROOT / ".codex/hooks.json",
@@ -116,8 +119,10 @@ for path in sorted(agent_root.glob("*.toml")):
     role_names.add(value.get("name"))
     if not value.get("description") or not value.get("developer_instructions"):
         errors.append(f"agent lacks required current Codex fields: {path.relative_to(ROOT)}")
-    if value.get("sandbox_mode") not in {"read-only", "workspace-write"}:
-        errors.append(f"agent lacks explicit permission posture: {path.relative_to(ROOT)}")
+    if "sandbox_mode" in value or "approval_policy" in value:
+        errors.append(f"agent cannot override inherited sandbox/approvals: {path.relative_to(ROOT)}")
+    if "Subagents inherit parent sandbox" not in value.get("developer_instructions", ""):
+        errors.append(f"agent lacks truthful inherited permission boundary: {path.relative_to(ROOT)}")
     for section in contract_sections:
         if section not in value.get("developer_instructions", ""):
             errors.append(f"agent contract missing {section} in {path.relative_to(ROOT)}")
@@ -126,8 +131,8 @@ for path in sorted(agent_root.glob("*.toml")):
         errors.append(f"agent contract has incorrect session role code in {path.relative_to(ROOT)}")
     lifecycle_requirements = {
         "coordinator": "Supervise watchdogs and reconcile GitHub",
-        "implementation": "Send IMPLEMENTATION_READY directly to the bound QA and Reviewer",
-        "reviewer": "Reviewer is the delivery-cell verification lead",
+        "implementation": "Return IMPLEMENTATION_READY to Coordinator",
+        "reviewer": "return passed or changes_requested to Coordinator",
     }
     required_lifecycle = lifecycle_requirements.get(role_name)
     if required_lifecycle and required_lifecycle not in value.get("developer_instructions", ""):

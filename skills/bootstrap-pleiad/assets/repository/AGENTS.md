@@ -1,15 +1,15 @@
 <!-- pleiad:start -->
 ## Pleiad
 
-- Work from an authoritative issue in a dedicated task, branch, and worktree.
-- Name new delivery sessions `#<issue number> <role code> - <issue title>` with role codes `CO`, `PD`, `AR`, `IM`, `QA`, `RV`, and `KS`; cap the full title at 36 Unicode characters by truncating only the issue title and ending it with one `…`. Reject unknown role codes.
-- Use Coordinator, Product, Architecture, Implementation, QA, Reviewer, and Knowledge Steward roles through `.codex/agents/`.
-- Canonical delivery topology is one issue = one delivery cell = one writable Implementation worktree/branch = one PR. The cell has distinct issue-backed user-visible Coordinator, Implementation, QA, and Reviewer tasks; only Implementation writes source or commits, while QA and Reviewer remain independent and non-authoritative.
-- Coordinator owns human-facing progress, activation, supervision, recovery, and consolidated outcomes through the coordination chain. IM/QA/RV coordinate directly through native task messaging and structured handoffs; never require human prompt copying, peer activation, or routine manual continuation.
-- Scoped internal coordination follows human cell authorization and host/tool permissions; the plugin grants no permissions. Escalate missing authorization, unavailable task control, or unresolved delivery uncertainty to Coordinator, who exhausts safe recovery before one necessary actionable human blocker. Copy/paste fallback is last resort; human decisions, acceptance, merge authority, and voluntary specialist inspection remain explicit.
-- Ephemeral subagents are limited to bounded read-only research, discovery, documentation lookup, log analysis, and evidence gathering; they may not write files or external durable state.
-- Communicate through `.pleiad/handoff.schema.json`; messages are transport only and GitHub plus committed canonical artifacts remain authoritative.
-- Use `adr-context` to read `docs/decisions/INDEX.md` and load only materially relevant active ADRs.
-- Corrections return to the same Implementation task with a finding-to-fix verification map. Implementation never approves its own work; QA and Reviewer remain independent.
-- Keep one pull request scoped to one issue. Human merge authority remains explicit.
+- Work from an authoritative issue in one durable Coordinator task, one writable Implementation worktree/branch, and one PR. Standalone Coordinator is supported.
+- Name new durable sessions `#<issue number> <role code> - <issue title>` with `CO`, `PD`, `AR`, `IM`, `QA`, `RV`, and `KS`; cap the full title at 36 Unicode characters by truncating only the issue title and ending with one `…`. Reject unknown codes.
+- Coordinator uses native specialist subagents through `.codex/agents/` for IM, independent isolated QA, independent RV, and necessary PD/AR/KS/research. Only IM edits project files or commits; specialists return proposals to IM. Preserve others' edits. No second source writer.
+- Coordinator owns human-facing progress, activation, supervision, recovery, corrections, and consolidated outcomes. Use native spawn/follow-up/wait/results in its tree; no human relaying or routine cross-chat fan-out. Native task messaging is transport, not delivery authority.
+- Include scoped standing owner commit/push/PR/CI/QA/review authorization in initial CO instructions and propagate it to IM with `scripts/native_cell.py assign --instructions`. Routine issue publication needs no additional consent hold. Human merge approval after local review remains required; deployment, DNS, public exposure, secrets disclosure, and unrelated publication require separate authority. Preserve native denials until supported resolution.
+- Subagents inherit parent sandbox/approvals. Role instructions are behavioral limits, never a promise of separate per-agent enforcement. Parent needs adequate IM/QA capabilities; CO remains a behavioral non-writer. The plugin grants no permissions and cannot bypass host/tool permission requirements.
+- Persist typed native boundaries using `.pleiad/native-cell.schema.json`; bind independent role evidence to observed native source, assignment, generation and exact SHA. GitHub and committed canonical artifacts remain authoritative. Keep runtime agent/task/PID/workspace handles machine-local.
+- Corrections return to the same IM with a finding-to-fix verification map. Changed SHA invalidates earlier QA/RV evidence. CO schedules transitions but cannot author QA/RV verdicts or approve its own delivery.
+- Resume by validating the checkpoint and reconciling native/GitHub identity before replacements or uncertain dispatch. Event IDs differ from recipient IDs; unknown delivery never replays an applied parent event. Escalate unresolved uncertainty through Coordinator; copy/paste is a last-resort recovery artifact.
+- Legacy top-level operation requires explicit `legacy-top-level` opt-in and the retained `.pleiad/handoff.schema.json` contract. Never silently convert a legacy checkpoint or create separate top-level specialists by default.
+- Use `adr-context` for selective ADR retrieval. Human acceptance and merge authority remain explicit.
 <!-- pleiad:end -->

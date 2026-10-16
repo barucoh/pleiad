@@ -22,8 +22,8 @@ routing_matrix:
   reviewer: "gpt-6.1-sol/Medium|High-with-risk-rationale|gpt-6-astra/High-with-risk-rationale"
   knowledge_steward: "gpt-6-luna/Low|gpt-6.1-sol/Medium-with-decision-rationale|gpt-6-astra/High-with-risk-rationale"
   ephemeral_research: "gpt-6-luna/Low|gpt-6.1-sol/Low|gpt-6-astra/Medium-with-exceptional-rationale"
-lifecycle_policy: delivery-cell-v1
-lifecycle_sequence: "IMPLEMENTATION_ACTIVE->IMPLEMENTATION_READY->QA_PASSED->REVIEW_ACTIVE->CHANGES_REQUESTED->CORRECTION_ACTIVE->IMPLEMENTATION_READY->QA_PASSED->REVIEW_ACTIVE->REVIEW_ACCEPTED->HUMAN_MERGE_READY"
+lifecycle_policy: native-cell-v1
+lifecycle_sequence: "IMPLEMENTATION_ACTIVE->IMPLEMENTATION_READY->CHANGES_REQUESTED->CORRECTION_ACTIVE->IMPLEMENTATION_READY->LOCAL_REVIEW_READY"
 lifecycle_transport_overlay: per-recipient DELIVERY_UNKNOWN
 delivery_topology: one-issue-one-cell-one-implementation-worktree-branch-one-pr
 qa_workspace_topology: host-provisioned-isolated-clone
@@ -33,7 +33,13 @@ handoff_schema_version: 1.0.0
 handoff_schema_path: .pleiad/handoff.schema.json
 coordination_contract_path: docs/pleiad/coordination.md
 role_contracts_path: docs/pleiad/role-contracts.md
-durable_delivery: issue-task-worktree-branch-pr
+durable_delivery: issue-coordinator-worktree-branch-pr
+execution_mode: native
+legacy_mode: explicit-opt-in
+native_checkpoint_schema: .pleiad/native-cell.schema.json
+native_cell_runtime: scripts/native_cell.py
+permission_boundary: inherited-parent-sandbox-and-approvals
+specialist_agents: native-role-bound
 ephemeral_subagents: bounded-read-only-research-only
 cross_task_watchdog_seconds: 25
 roles:

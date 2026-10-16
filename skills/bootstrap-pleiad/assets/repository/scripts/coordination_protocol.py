@@ -104,6 +104,15 @@ LIFECYCLE_CONFIG_LINES = (
     "qa_workspace_topology: host-provisioned-isolated-clone",
     "qa_workspace_check: scripts/qa_workspace.py",
 )
+NATIVE_CONFIG_LINES = (
+    "execution_mode: native",
+    "lifecycle_policy: native-cell-v1",
+    'lifecycle_sequence: "IMPLEMENTATION_ACTIVE->IMPLEMENTATION_READY->CHANGES_REQUESTED->CORRECTION_ACTIVE->IMPLEMENTATION_READY->LOCAL_REVIEW_READY"',
+    "native_checkpoint_schema: .pleiad/native-cell.schema.json",
+    "native_cell_runtime: scripts/native_cell.py",
+    "permission_boundary: inherited-parent-sandbox-and-approvals",
+    "legacy_mode: explicit-opt-in",
+)
 
 
 def format_session_title(issue_number: int, role_code: str, issue_title: str) -> str:
@@ -161,7 +170,12 @@ def validate_session_title_config(config_text: str) -> list[str]:
     missing_routing_lines = [line for line in ROUTING_CONFIG_LINES if line not in lines]
     if missing_routing_lines:
         errors.append("routing policy is incomplete: " + ", ".join(missing_routing_lines))
-    missing_lifecycle_lines = [line for line in LIFECYCLE_CONFIG_LINES if line not in lines]
+    native = "execution_mode: native" in lines
+    mode_lines = [line for line in lines if line.startswith("execution_mode:")]
+    if mode_lines and mode_lines not in [["execution_mode: native"], ["execution_mode: legacy-top-level"]]:
+        errors.append("execution_mode must be native or explicit legacy-top-level")
+    required_lifecycle = NATIVE_CONFIG_LINES if native else LIFECYCLE_CONFIG_LINES
+    missing_lifecycle_lines = [line for line in required_lifecycle if line not in lines]
     if missing_lifecycle_lines:
         errors.append("lifecycle policy is incomplete: " + ", ".join(missing_lifecycle_lines))
     return errors

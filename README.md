@@ -2,7 +2,7 @@
 
 Pleiad (pronounced PLEE-ad) is an **Agentic SDLC**: a public Codex plugin for repository-native, issue-driven software delivery. Its name is new; the product category and methodology are unchanged.
 
-Pleiad installs reusable workflows while keeping project knowledge in the repository. It provides complete role contracts, versioned structured handoffs, resilient cross-task recovery, selective ADR discovery, deterministic upgrades, and a one issue = one delivery cell = one writable Implementation worktree/branch = one PR model; QA and Reviewer use distinct subordinate, non-authoritative tasks/workspaces.
+Pleiad installs reusable workflows while keeping project knowledge in the repository. It provides complete role contracts, versioned structured handoffs, resilient cross-task recovery, selective ADR discovery, deterministic upgrades, and a one issue = one delivery cell = one writable Implementation worktree/branch = one PR model; one durable Coordinator runs native IM, isolated independent QA and independent Reviewer agents.
 
 ## Install during development
 
@@ -19,7 +19,7 @@ Bootstrap and upgrade always inspect first, report a deterministic dry run, pres
 
 Coordinator is the human-facing owner of cell progress, activation, supervision, recovery, and consolidated outcome reporting. When a persistent home task delegates an issue Coordinator, progress and outcomes stay within that coordination chain. Human authorization for the cell workflow covers scoped internal peer coordination, subject to host/tool permission requirements; the plugin grants no permissions and cannot bypass host restrictions. Human product decisions, credentials/permissions, acceptance, and merge authority remain explicit, and voluntary inspection of specialist tasks is welcome.
 
-IM/QA/RV use native task messaging and structured handoffs for readiness, findings, corrections, and completion; they must not ask the human to copy prompts, open peer tasks, or manually continue routine delivery. Escalate unavailable task control, unresolved delivery uncertainty, or missing authorization to Coordinator. Coordinator exhausts safe recovery within existing authority and host/tool permissions, then presents one actionable human blocker only when necessary through the coordination chain. A GitHub-reconstructible copy/paste fallback is a last-resort recovery artifact, never the normal user workflow. Direct peer lifecycle routes and independent QA/review remain intact.
+Coordinator uses native spawn/follow-up/wait/results and compact typed records for specialist work; they must not ask the human to copy prompts, open peer tasks, or manually continue routine delivery. Escalate unavailable task control, unresolved delivery uncertainty, or missing authorization to Coordinator. Coordinator exhausts safe recovery within existing authority and host/tool permissions, then presents one actionable human blocker only when necessary through the coordination chain. A GitHub-reconstructible copy/paste fallback is a last-resort recovery artifact, never the normal user workflow. Independent QA/review remain required at the exact final SHA. Separate top-level specialists require explicit legacy-top-level selection; running checkpoints are never silently converted.
 
 See [upgrading](docs/upgrading.md) for the two-layer plugin and repository migration model.
 See the [GPT-6 model migration plan](docs/pleiad/model-migration-plan.md) for model-routing evaluation and rollout.
@@ -40,3 +40,5 @@ Pull requests target `main`. Only the repository owner may merge. Versions are s
 ## Self-hosting
 
 This repository dogfoods Pleiad. Release pull requests update both the plugin manifest and the repository's applied version; only the owner may merge, and the matching stable release is then published automatically.
+
+See the [native cell candidate design](docs/pleiad/native-delivery-design.md), [proposed ADR](docs/decisions/ADR-0001-native-coordinator-cells.md), and `scripts/native_cell.py --help` for mechanical assignment/result/checkpoint construction. Subagents inherit parent sandbox/approvals; CO is a behavioral non-writer and only IM edits source/commits. Initial CO/IM instructions carry verified standing issue-delivery authorization; routine PR publication has no second approval hold. Human merge authority and native denials remain explicit.
