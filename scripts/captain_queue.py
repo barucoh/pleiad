@@ -130,7 +130,7 @@ def enqueue(queue, issue_number, title, ownership_paths, *, dependencies=(), pri
         candidate["cells"].append(dict(issue_number=issue_number, issue_url=f"https://github.com/{queue['repository']}/issues/{issue_number}", title=title,
             ownership=list(ownership_paths), dependencies=list(dependencies), priority=priority, issue_state=issue_state,
             state="closed" if issue_state == "closed" else "queued", lease=False, blocker="", reconciliation_required=False, cell_id="", pr_url="", branch="", sha="", assignment=None, progress=None, attempts=[], recoveries=[], denials=[], evidence=list(evidence_urls)))
-    if not entry(candidate, issue_number)["cell_id"]:
+    if entry(candidate, issue_number)["assignment"] is None:
         entry(candidate, issue_number)["reconciliation_required"] = False
     validate(candidate)
     queue.update(candidate)
@@ -305,13 +305,17 @@ def progress(queue, local, issue, source, cell, *, cell_local, observed_sha, obs
     Host supplies freshly observed GitHub head/PR and native-cell receipts.
     """
     validate(queue)
-    validate_cell(cell)
-    rehydrate_cell(cell, cell_local, observed_sha=observed_sha, observed_pr=observed_pr, observed_issue_url=cell["issue_url"], observed_branch=cell["branch"])
     c = entry(queue, issue)
+    # Authenticate against the existing CP binding before any mutation. Once a
+    # bound CO submits new evidence, every failing admission path must leave its
+    # cached readiness unusable, including malformed/stale cell or receipt data.
     source_guard(queue, local, c, source)
+    c["reconciliation_required"] = True
     require(current_activation(c) and current_activation(c)["status"] == "applied", "current-generation applied activation required before CO progress")
     require(not any(d["status"] == "unresolved" for d in c["denials"]), "native denial requires supported resolution")
     evidence(queue, evidence_urls)
+    validate_cell(cell)
+    rehydrate_cell(cell, cell_local, observed_sha=observed_sha, observed_pr=observed_pr, observed_issue_url=cell["issue_url"], observed_branch=cell["branch"])
     require(cell["repository"] == queue["repository"] and cell["issue_number"] == issue, "CO cell identity mismatch")
     require(next_action, "active supervision needs a concrete next action")
     require(not any(a["status"] in {"unknown", "failed"} for a in c["attempts"]), "reconcile transport before progress admission")
@@ -319,8 +323,6 @@ def progress(queue, local, issue, source, cell, *, cell_local, observed_sha, obs
     require(not c["cell_id"] or c["cell_id"] == cell["cell_id"], "one CO cell identity per issue")
     require(not c["pr_url"] or c["pr_url"] == cell["pr_url"], "one CO PR identity per issue")
     require(not c["branch"] or c["branch"] == cell["branch"], "one CO branch identity per issue")
-    if c["sha"] and c["sha"] != cell["sha"]:
-        c["reconciliation_required"] = True
     if not c["lease"] and (c["sha"] != cell["sha"] or cell["state"] != "LOCAL_REVIEW_READY" or not quiescent):
         require(not admission_blocker(queue, c), "changed head needs capacity/ownership admission before continuation")
     if any(d["status"] == "unresolved" for d in cell["denials"]):

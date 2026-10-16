@@ -313,6 +313,99 @@ class CaptainScenarios(unittest.TestCase):
         cp.rehydrate(self.queue, self.local, self.observations())
         self.activate(2)
 
+    def test_rv3_qa1_bound_progress_failures_invalidate_before_any_evidence_check(self):
+        self.add(1)
+        self.add(2, deps=[dict(issue_number=1, requires="local_review_ready")])
+        self.activate(1)
+        cell, cell_local = self.cell(1, ready=True)
+        self.observe(1, cell, cell_local, quiescent=True)
+        for failure in ("head", "pr", "receipt", "context", "identity", "sealed_pr", "malformed_cell", "evidence", "next_action"):
+            with self.subTest(failure=failure):
+                q, local = copy.deepcopy(self.queue), copy.deepcopy(self.local)
+                kwargs = dict(cell_local=copy.deepcopy(cell_local), observed_sha=SHA, observed_pr=cell["pr_url"], next_action="Owner local review.", quiescent=True, evidence_urls=[cell["issue_url"]])
+                incoming = copy.deepcopy(cell)
+                if failure == "head":
+                    kwargs["observed_sha"] = "b" * 40
+                elif failure == "pr":
+                    kwargs["observed_pr"] = "https://github.com/o/r/pull/9"
+                elif failure == "receipt":
+                    kwargs["cell_local"]["receipts"] = {}
+                elif failure == "context":
+                    kwargs["cell_local"]["contexts"] = {}
+                elif failure == "identity":
+                    kwargs["cell_local"]["identity"] = "altered"
+                elif failure == "sealed_pr":
+                    kwargs["cell_local"]["pr_url"] = "https://github.com/o/r/pull/9"
+                elif failure == "malformed_cell":
+                    incoming.pop("sha")
+                elif failure == "evidence":
+                    kwargs["evidence_urls"] = ["https://github.com/other/repo/issues/1"]
+                elif failure == "next_action":
+                    kwargs["next_action"] = ""
+                prior = copy.deepcopy(cp.entry(q, 1)["progress"])
+                with self.assertRaises(native.CellError):
+                    cp.progress(q, local, 1, "host-co-1", incoming, **kwargs)
+                self.assertTrue(cp.entry(q, 1)["reconciliation_required"])
+                self.assertEqual(cp.entry(q, 1)["progress"], prior)
+                self.assertEqual(cp.next_actions(q)[0]["action"], "reconcile")
+                with self.assertRaisesRegex(native.CellError, "requires local_review_ready"):
+                    cp.reserve(q, 2, "Cannot consume stale progress after caught failure.")
+                # Correct bound evidence restores readiness, including fresh
+                # exact-head verification when the failure observed a new head.
+                restored, receipts = copy.deepcopy(cell), copy.deepcopy(cell_local)
+                if failure == "head":
+                    native.changed_head(restored, "b" * 40)
+                    self.finish_cell(restored, receipts)
+                cp.progress(q, local, 1, "host-co-1", restored, cell_local=receipts, observed_sha=restored["sha"], observed_pr=restored["pr_url"], next_action="Owner local review.", quiescent=True, evidence_urls=[restored["issue_url"]])
+                self.assertFalse(cp.entry(q, 1)["reconciliation_required"])
+                cp.reserve(q, 2, "Verified dependency is usable again.")
+
+    def test_rv3_qa1_unbound_progress_cannot_poison_verified_readiness(self):
+        self.add(1)
+        self.add(2)
+        self.activate(1)
+        self.activate(2)
+        cell, receipts = self.cell(1, ready=True)
+        self.observe(1, cell, receipts, quiescent=True)
+        for source in ("unrelated-source", "host-observed-cp", "host-co-2"):
+            with self.subTest(source=source):
+                before = copy.deepcopy(self.queue)
+                corrupted = copy.deepcopy(receipts)
+                corrupted["receipts"] = {}
+                with self.assertRaises(native.CellError):
+                    cp.progress(self.queue, self.local, 1, source, cell, cell_local=corrupted, observed_sha="b" * 40, observed_pr=cell["pr_url"], next_action="Poison.", evidence_urls=[cell["issue_url"]])
+                self.assertEqual(self.queue, before)
+                self.assertEqual(cp.next_actions(self.queue)[0]["action"], "report")
+
+    def test_rv3_qa1_issue_refresh_cannot_clear_assigned_transport_reconciliation(self):
+        for assigned in (False, True):
+            with self.subTest(assigned=assigned):
+                self.setUp()
+                self.add(1)
+                if assigned:
+                    self.activate(1)
+                observed = self.observations()
+                if assigned:
+                    observed["1"]["source"] = "unexpected-co-source"
+                else:
+                    observed["1"].pop("issue_url")
+                with self.assertRaises(native.CellError):
+                    cp.rehydrate(self.queue, self.local, observed)
+                self.assertTrue(cp.entry(self.queue, 1)["reconciliation_required"])
+                self.assertEqual(cp.entry(self.queue, 1)["cell_id"], "")
+                self.add(1)
+                if assigned:
+                    self.assertTrue(cp.entry(self.queue, 1)["reconciliation_required"])
+                    with self.assertRaisesRegex(native.CellError, "fresh issue/CO"):
+                        cp.attempt(self.queue, 1, "continue")
+                    with self.assertRaisesRegex(native.CellError, "fresh issue/CO"):
+                        cp.recover(self.queue, self.local, 1, observed_status="stopped", evidence_urls=[cp.entry(self.queue, 1)["issue_url"]])
+                    cp.rehydrate(self.queue, self.local, self.observations())
+                    cp.attempt(self.queue, 1, "continue")
+                else:
+                    self.assertFalse(cp.entry(self.queue, 1)["reconciliation_required"])
+                    cp.reserve(self.queue, 1, "Fresh issue evidence suffices before assignment.")
+
     def test_native_denial_not_resolved_by_absent_dispatch(self):
         self.add(1)
         a = cp.reserve(self.queue, 1, "Create.")
