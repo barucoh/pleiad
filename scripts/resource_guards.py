@@ -105,17 +105,22 @@ def acquire(ledger, local, *, owner, kind, name, handle):
     require(isinstance(handle, dict) and handle, "observed private handle required")
     if kind == "qa-clone":
         require(set(handle) == {"path", "disposable_root", "device", "inode", "created", "root_identity", "marker_identity"}, "resolved clone boundary and filesystem identity required")
+        require(observe_path(handle) == handle, "current resolved clone identity required")
     if kind in {"process", "server"}:
         require(type(handle.get("pid")) is int and handle["pid"] > 0 and bool(handle.get("start_identity")), "process identity needs PID plus observed start identity")
     if kind in {"port", "device", "tunnel"}:
         require(bool(handle.get("lease_identity")), "observed device/port/tunnel lease identity required")
         require(bool(handle.get({"port": "address", "device": "device_identity", "tunnel": "tunnel_identity"}[kind])), "resource address identity required")
-    require(not any(entry["handle"] == handle for entry in local.values()), "handle already registered")
     item = dict(id=uid(), cell_id=ledger["cell_id"], owner=owner, kind=kind, name=name,
                 generation=ledger["generation"], sha=ledger["sha"], revision=0, state="USING",
                 leases=[], guard=None, certificate=None, receipt=None)
+    entry = {"handle": copy.deepcopy(handle), "binding": digest({"resource": item, "handle": handle})}
+    candidate = {"ledger": copy.deepcopy(ledger), "local": copy.deepcopy(local)}
+    candidate["ledger"]["resources"].append(item)
+    candidate["local"][item["id"]] = entry
+    _handle_keys(candidate)  # Check ancestor boundaries before recording the claim.
     ledger["resources"].append(item)
-    local[item["id"]] = {"handle": copy.deepcopy(handle), "binding": digest({"resource": item, "handle": handle})}
+    local[item["id"]] = entry
     return item["id"]
 
 
@@ -302,14 +307,17 @@ class LedgerStore:
             require(isinstance(state, dict) and set(state) == {"ledger", "local"}, "complete local ledger required")
             validate(state["ledger"])
 
-            def persist():
+            def check_ownership():
                 validate(state["ledger"])
                 keys = _handle_keys(state)
                 for peer in self.path.parent.glob("*.json"):
                     if peer == self.path:
                         continue
                     previous = json.loads(peer.read_text(encoding="utf-8"))
-                    require(not keys.intersection(_handle_keys(previous)), "resource already owned by another cell/generation; reconcile")
+                    require(not _overlapping_keys(keys, _handle_keys(previous)), "overlapping resource already owned by another cell/generation; reconcile")
+
+            def persist():
+                check_ownership()
                 temp = self.path.with_suffix(self.path.suffix + ".tmp")
                 with temp.open("w", encoding="utf-8") as stream:
                     json.dump(state, stream, indent=2)
@@ -318,6 +326,7 @@ class LedgerStore:
                 os.replace(temp, self.path)
 
             # Save on exceptions too: cleanup uncertainty must survive interruption.
+            check_ownership()  # Imported/restarted conflicting claims never reach callbacks.
             try:
                 yield state["ledger"], state["local"], persist
             finally:
@@ -336,14 +345,30 @@ def _handle_keys(state):
         entry = _entry(state["local"], item)
         handle = entry["handle"]
         if item["kind"] == "qa-clone":
-            key = ("path", os.path.normcase(handle["path"]))
+            # Registration has resolved the path. Preserve that reserved address
+            # even if the path is absent or replaced by an alias after restart.
+            key = ("path", os.path.normcase(os.path.abspath(handle["path"])))
         elif item["kind"] in {"process", "server"}:
             key = ("process", handle["pid"])
         else:
             key = (item["kind"], handle[{"port": "address", "device": "device_identity", "tunnel": "tunnel_identity"}[item["kind"]]])
-        require(key not in keys, "duplicate resource address")
+        require(not _overlapping_keys({key}, keys), "overlapping resource address")
         keys.add(key)
     return keys
+
+
+def _overlapping_keys(left, right):
+    for first in left:
+        for second in right:
+            if first == second:
+                return True
+            if first[0] == second[0] == "path":
+                try:
+                    if os.path.commonpath([first[1], second[1]]) in {first[1], second[1]}:
+                        return True
+                except ValueError:  # Separate Windows drives cannot overlap.
+                    continue
+    return False
 
 
 def public(ledger):

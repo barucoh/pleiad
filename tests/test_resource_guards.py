@@ -326,5 +326,129 @@ class ResourceAdoption(unittest.TestCase):
             self.assertIn(("conflict", "scripts/resource_guards.py"), {(a.classification, a.path.as_posix()) for a in actions})
 
 
+class CloneOverlapRegression(unittest.TestCase):
+    """RV28/QA28: a parent's native recursive removal covers every child claim."""
+    def fixtures(self, root):
+        outer, inner, sibling = root / "outer", root / "outer/nested", root / "outer-sibling"
+        for target in (outer, inner, sibling):
+            (target / ".git").mkdir(parents=True)
+        return [rg.register_clone(target, root) for target in (outer, inner, sibling)]
+
+    def claim(self, handle, owner="issue-28-co", ledger=None, local=None):
+        ledger = ledger if ledger is not None else rg.create(str(uuid4()), owner, 0, SHA)
+        local = local if local is not None else {}
+        rid = rg.acquire(ledger, local, owner=owner, kind="qa-clone", name="clone-" + str(len(ledger["resources"])), handle=handle)
+        return ledger, local, rid
+
+    def state(self, ledger, local, rid, state):
+        owner = ledger["owner"]
+        if state == "USING":
+            rg.lease(ledger, rid, owner=owner, consumer="active-qa")
+            return
+        rg.final_guard(ledger, rid, owner=owner, evidence=dict(final=True, passed=True, sha=SHA, generation=0,
+            exact_sha=True, clone_boundary=True, source_unchanged=True, refs_unchanged=True))
+        if state == "GUARDED":
+            return
+        cert = rg.certify(ledger, rid, owner=owner)
+        if state == "CERTIFIED":
+            return
+        def interrupt(_):
+            raise OSError("uncertain host cleanup")
+        try:
+            rg.cleanup(ledger, local, rid, owner=owner, certificate=cert, observe=rg.observe_path,
+                remove=interrupt if state == "CLEANING" else lambda _: None, absent=lambda _: True, persist=lambda: None)
+        except OSError:
+            self.assertEqual(state, "CLEANING")
+
+    def test_parent_and_child_claims_block_in_both_orders_until_cleaned(self):
+        for same_ledger in (True, False):
+            for reverse in (False, True):
+                for state in ("USING", "GUARDED", "CERTIFIED", "CLEANING", "CLEANED"):
+                    with self.subTest(same_ledger=same_ledger, reverse=reverse, state=state):
+                        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+                            root = Path(tmp)
+                            first, second, sibling = self.fixtures(root)
+                            if reverse:
+                                first, second = second, first
+                            ledger, local, rid = self.claim(first)
+                            self.state(ledger, local, rid, state)
+                            callbacks = []
+                            if same_ledger:
+                                before = copy.deepcopy((ledger, local))
+                                if state == "CLEANED":
+                                    self.claim(second, ledger=ledger, local=local)
+                                else:
+                                    with self.assertRaises(rg.ResourceError):
+                                        self.claim(second, ledger=ledger, local=local)
+                                    self.assertEqual((ledger, local), before)
+                            else:
+                                stores = root / "private-state"
+                                first_store, second_store = rg.LedgerStore(stores / "first.json"), rg.LedgerStore(stores / "second.json")
+                                with first_store.transaction({"ledger": ledger, "local": local}):
+                                    pass
+                                other, other_local, _ = self.claim(second, owner="issue-29-co")
+                                if state == "CLEANED":
+                                    with second_store.transaction({"ledger": other, "local": other_local}):
+                                        pass
+                                else:
+                                    with self.assertRaises(rg.ResourceError):
+                                        with second_store.transaction({"ledger": other, "local": other_local}):
+                                            callbacks.append("overlapping consumer/cleanup callback")
+                                    self.assertFalse(second_store.path.exists())
+                            self.assertEqual(callbacks, [])
+
+    def test_imported_conflicting_claims_cannot_reach_cleanup_callback(self):
+        for same_ledger in (True, False):
+            for reverse in (False, True):
+                with self.subTest(same_ledger=same_ledger, reverse=reverse):
+                    with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+                        root = Path(tmp)
+                        parent, child, _ = self.fixtures(root)
+                        if reverse:
+                            parent, child = child, parent
+                        first, first_local, first_id = self.claim(parent)
+                        self.state(first, first_local, first_id, "CERTIFIED")
+                        # Emulate a ledger from the previous runtime, which allowed overlaps.
+                        empty = rg.create(first["cell_id"] if same_ledger else str(uuid4()), first["owner"] if same_ledger else "issue-29-co", 0, SHA)
+                        other, other_local, other_id = self.claim(child, owner=empty["owner"], ledger=empty)
+                        self.state(other, other_local, other_id, "USING")
+                        stores = root / "private-state"
+                        stores.mkdir()
+                        store = rg.LedgerStore(stores / "first.json")
+                        if same_ledger:
+                            first["resources"].extend(other["resources"])
+                            first_local.update(other_local)
+                        else:
+                            (stores / "other.json").write_text(json.dumps({"ledger": other, "local": other_local}))
+                        store.path.write_text(json.dumps({"ledger": first, "local": first_local}))
+                        callbacks = []
+                        with self.assertRaises(rg.ResourceError):
+                            with store.transaction() as (ledger, local, persist):
+                                cert = ledger["resources"][0]["certificate"]
+                                rg.cleanup(ledger, local, first_id, owner=ledger["owner"], certificate=cert, observe=rg.observe_path,
+                                           remove=lambda _: callbacks.append("remove"), absent=lambda _: True, persist=persist)
+                        self.assertEqual(callbacks, [])
+                        self.assertTrue(Path(child["path"]).exists())
+
+    def test_sibling_and_normalized_resolved_boundaries(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            root = Path(tmp)
+            parent, child, sibling = self.fixtures(root)
+            normalized = rg.path_handle(root / "outer/nested/../.", root)
+            self.assertEqual(normalized, parent)
+            first, local, _ = self.claim(normalized)
+            self.claim(sibling, ledger=first, local=local)
+            with self.assertRaises(rg.ResourceError):
+                self.claim(child, ledger=first, local=local)
+            stores = root / "private-state"
+            with rg.LedgerStore(stores / "first.json").transaction({"ledger": first, "local": local}):
+                pass
+            separate = root / "separate"
+            (separate / ".git").mkdir(parents=True)
+            second, second_local, _ = self.claim(rg.register_clone(separate, root), owner="issue-29-co")
+            with rg.LedgerStore(stores / "second.json").transaction({"ledger": second, "local": second_local}):
+                pass
+
+
 if __name__ == "__main__":
     unittest.main()
