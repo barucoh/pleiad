@@ -1,6 +1,7 @@
 """Adversarial operational ownership tests; all host side effects use fixtures."""
 import copy
 import json
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
@@ -11,6 +12,7 @@ from uuid import uuid4
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import resource_guards as rg
 import manage_repository as managed
+import native_cell as native
 from qa_workspace import WorkspaceSnapshot, cleanup_evidence, verify_qa_workspace
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -298,6 +300,147 @@ class ResourceTests(unittest.TestCase):
                         expires_at=1200, now=1000, max_restarts=1)
             with self.subTest(options=options), self.assertRaises(rg.ResourceError):
                 rg.demo_exception(**dict(base, **options))
+
+
+class ReadinessResourceStores(unittest.TestCase):
+    """RV29: real on-disk stores across ordinary native IM-ready SHA changes."""
+    def repository(self, root):
+        subprocess.run(["git", "init", str(root)], check=True, capture_output=True)
+
+    def state(self, cell, pid):
+        ledger, local = rg.create(cell["cell_id"], "issue-29-co", cell["generation"], cell["sha"]), {}
+        rid = rg.acquire(ledger, local, owner="issue-29-co", kind="process", name="owned-process",
+                         handle={"pid": pid, "start_identity": "fixture-start"})
+        return {"ledger": ledger, "local": local}, rid
+
+    def test_initial_and_correction_readiness_keep_distinct_sha_stores_and_old_claims(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            root = Path(tmp)
+            self.repository(root)
+            cell = native.create("o/r", 29, "codex/29", SHA)
+            cell["pr_url"] = "https://github.com/o/r/pull/29"
+            local = {"coordinator": "fixture-co", "bindings": {}}
+            previous = []
+            for generation, ready_sha in ((0, "b" * 40), (1, "c" * 40)):
+                im = native.assignment(cell, "implementation", "Apply scoped fix.", "gpt-6-luna", "Low", "Routine fixture work.")
+                native.bind(cell, local, im["id"], "fixture-im")
+                self.assertEqual(cell["generation"], generation)
+                before = rg.LedgerStore.for_repository(root, cell["cell_id"], generation, cell["sha"])
+                state, rid = self.state(cell, 1200 + generation)
+                with before.transaction(state):
+                    pass
+                original = before.path.read_bytes()
+                fixes = [{"finding_id": f["id"], "evidence": cell["pr_url"]} for f in cell["pending_findings"]]
+                record = native.result(im, ready_sha, "ready", [cell["pr_url"]], fixes=fixes,
+                                       checks=[{"name": "fixture-check", "status": "passed"}])
+                native.receive(cell, local, "fixture-im", record)
+                self.assertEqual((cell["sha"], cell["generation"]), (ready_sha, generation))
+                after = rg.LedgerStore.for_repository(root, cell["cell_id"], generation, ready_sha)
+                self.assertNotEqual(before.path, after.path)
+                # Historical resources still reserve their actual address at the new head.
+                overlapping, _ = self.state(cell, 1200 + generation)
+                with self.assertRaisesRegex(rg.ResourceError, "already owned"):
+                    with after.transaction(overlapping):
+                        self.fail("old-head ownership was discarded")
+                self.assertFalse(after.path.exists())
+                fresh, fresh_id = self.state(cell, 2200 + generation)
+                with after.transaction(fresh) as (ledger, bindings, persist):
+                    rg.final_guard(ledger, fresh_id, owner="issue-29-co", evidence=dict(final=True, passed=True, sha=ready_sha, generation=generation))
+                    cert = rg.certify(ledger, fresh_id, owner="issue-29-co")
+                    self.assertEqual(cert["sha"], ready_sha)
+                self.assertEqual(before.path.read_bytes(), original)
+                previous.append((before, rid))
+                if generation == 0:
+                    qa = native.assignment(cell, "qa", "Verify independently.", "gpt-6.1-sol", "Medium", "Independent fixture verification.")
+                    native.bind(cell, local, qa["id"], "fixture-qa")
+                    native.receive(cell, local, "fixture-qa", native.result(qa, ready_sha, "changes_requested", [cell["pr_url"]],
+                        findings=[{"id": "fixture-finding", "description": "Behavior needs correction."}]))
+            # Both earlier heads remain independently cleanable with their own certificates.
+            for store, rid in previous:
+                with store.transaction() as (ledger, bindings, persist):
+                    rg.final_guard(ledger, rid, owner="issue-29-co", evidence=dict(final=True, passed=True, sha=ledger["sha"], generation=ledger["generation"]))
+                    cert = rg.certify(ledger, rid, owner="issue-29-co")
+                    receipt = rg.cleanup(ledger, bindings, rid, owner="issue-29-co", certificate=cert,
+                        observe=lambda h: h, remove=lambda h: None, absent=lambda h: True, persist=persist)
+                    self.assertEqual(receipt["sha"], ledger["sha"])
+            self.assertEqual(len(list(after.path.parent.glob("*.json"))), 4)
+
+    def test_loaded_identity_mismatch_blocks_callback_and_preserves_bytes(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            root = Path(tmp)
+            self.repository(root)
+            cell = native.create("o/r", 29, "codex/29", SHA)
+            store = rg.LedgerStore.for_repository(root, cell["cell_id"], 0, SHA)
+            state, _ = self.state(cell, 1200)
+            with store.transaction(state):
+                pass
+            for field, wrong in (("cell_id", str(uuid4())), ("generation", 1), ("sha", "b" * 40), ("owner", "another-co")):
+                original = copy.deepcopy(state)
+                original["ledger"][field] = wrong
+                for resource in original["ledger"]["resources"]:
+                    resource[field] = wrong
+                store.path.write_text(json.dumps(original))
+                before = store.path.read_bytes()
+                with self.subTest(field=field), self.assertRaises(rg.ResourceError):
+                    with store.transaction(state):
+                        self.fail("unexpected loaded identity reached host callback")
+                self.assertEqual(store.path.read_bytes(), before)
+
+    def test_legacy_store_explicit_recovery_preserves_claims_and_cleanup(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            root = Path(tmp)
+            self.repository(root)
+            cell = native.create("o/r", 29, "codex/29", SHA)
+            new = rg.LedgerStore.for_repository(root, cell["cell_id"], 0, SHA)
+            legacy_path = new.path.parent / f"{cell['cell_id']}-0.json"
+            state, rid = self.state(cell, 1200)
+            with rg.LedgerStore(legacy_path).transaction(state):
+                pass
+            original = legacy_path.read_bytes()
+            for store in (new, rg.LedgerStore.for_repository(root, cell["cell_id"], 0, "b" * 40, legacy=True)):
+                with self.assertRaises(rg.ResourceError):
+                    with store.transaction(state if store is new else None):
+                        self.fail("implicit conversion or wrong-SHA legacy recovery")
+            self.assertFalse(new.path.exists())
+            self.assertEqual(legacy_path.read_bytes(), original)
+            next_cell = copy.deepcopy(cell)
+            next_cell["sha"] = "b" * 40
+            next_store = rg.LedgerStore.for_repository(root, cell["cell_id"], 0, "b" * 40)
+            overlap, _ = self.state(next_cell, 1200)
+            with self.assertRaisesRegex(rg.ResourceError, "already owned"):
+                with next_store.transaction(overlap):
+                    self.fail("legacy claim ignored by new SHA store")
+            legacy = rg.LedgerStore.for_repository(root, cell["cell_id"], 0, SHA, legacy=True)
+            with legacy.transaction() as (ledger, bindings, persist):
+                rg.final_guard(ledger, rid, owner="issue-29-co", evidence=dict(final=True, passed=True, sha=SHA, generation=0))
+                cert = rg.certify(ledger, rid, owner="issue-29-co")
+                rg.cleanup(ledger, bindings, rid, owner="issue-29-co", certificate=cert,
+                    observe=lambda h: h, remove=lambda h: None, absent=lambda h: True, persist=persist)
+            with next_store.transaction(overlap):
+                pass  # Only an actual CLEANED receipt releases that historical address.
+            self.assertTrue(legacy_path.exists())
+            missing = rg.LedgerStore.for_repository(root, cell["cell_id"], 1, SHA, legacy=True)
+            with self.assertRaisesRegex(rg.ResourceError, "legacy resource store missing"):
+                with missing.transaction():
+                    self.fail("legacy recovery created a replacement")
+
+    def test_nonledger_sidecar_blocks_with_actionable_error_before_callbacks(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            root = Path(tmp)
+            self.repository(root)
+            cell = native.create("o/r", 29, "codex/29", SHA)
+            store = rg.LedgerStore.for_repository(root, cell["cell_id"], 0, SHA)
+            store.path.parent.mkdir(parents=True)
+            sidecar = store.path.parent / "provision.json"
+            sidecar.write_text('{"private_metadata":"preserve"}')
+            state, _ = self.state(cell, 1200)
+            with self.assertRaisesRegex(rg.ResourceError, "sidecars outside resources"):
+                with store.transaction(state):
+                    self.fail("unknown resource-directory record was silently ignored")
+            self.assertFalse(store.path.exists())
+            sidecar.rename(root / "provision.json")  # Explicit host reconciliation; preserve original bytes.
+            with store.transaction(state):
+                pass
 
 
 class ResourceAdoption(unittest.TestCase):
